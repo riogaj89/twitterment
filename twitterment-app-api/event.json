@@ -1,0 +1,10 @@
+{
+  "body": "{\"content\":\"Zurich\"}",
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "USER-SUB-1007"
+      }
+    }
+  }
+}
