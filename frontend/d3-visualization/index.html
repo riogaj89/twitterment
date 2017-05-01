@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style> /* set the CSS */
+
+body { font: 12px Arial;}
+
+path { 
+    stroke: steelblue;
+    stroke-width: 2;
+    fill: none;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: grey;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+</style>
+<body>
+
+
+<!-- load the d3.js library -->    
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+
+<input type="date" id="start-date" />
+<input type="time" id="start-time" />
+<input type="date" id="end-date" />
+<input type="time" id="end-time" />
+<!--
+<select id="aggregation-interval">
+	<option value="3600">Day</option>
+	<option value="86400">Week</option>
+	<option value="2592000">Month</option>
+</select>
+-->
+<button id="apply-settings">Apply</button>
+
+
+<script>
+
+var formatDateValue = function(date) {
+	var day = (date.getDate() < 10 ? '0' : '') + date.getDate();
+	var month = (date.getMonth() < 9 ? '0' :'') + (date.getMonth() + 1);
+	return date.getFullYear() + '-' + month + '-' + day;
+};
+
+var getDateObject = function(dateString, timeString) {
+	var dateParts = dateString.split('-');
+	var timeParts = timeString.split(':');
+	return new Date(dateParts[0], parseInt(dateParts[1]) - 1, dateParts[2], timeParts[0], timeParts[1], 0);
+};
+
+var setFormDefaults = function() {
+	var now = new Date();
+	var ystd = new Date();
+	ystd.setDate(now.getDate() - 1);
+	document.getElementById('end-date').value = formatDateValue(now);
+	document.getElementById('start-date').value = formatDateValue(ystd);
+	document.getElementById('end-time').value = '00:00';
+	document.getElementById('start-time').value = '00:00';
+};
+
+var getSettings = function() {
+	var startDate = getDateObject(
+		document.getElementById('start-date').value,
+		document.getElementById('start-time').value
+	);
+	var endDate = getDateObject(
+		document.getElementById('end-date').value,
+		document.getElementById('end-time').value
+	);
+	var diffSeconds = (endDate - startDate) / 1000;
+	var aggregationInterval = 0;
+	if (diffSeconds < 60) { // less than a minute => seconds
+		aggregationInterval = 1;
+	} else if (diffSeconds < 4 * 60 * 60) { // less than 4 hours => minutes
+		aggregationInterval = 60;
+	} else if (diffSeconds < 4 * 24 * 60 * 60) { // less than 4 days => hours
+		aggregationInterval = 60 * 60;
+	} else if (diffSeconds < 21 * 24 * 60 * 60) { // less than 21 days => days
+		aggregationInterval = 24 * 60 * 60;
+	} else if (diffSeconds < 21 * 24 * 60 * 60) { // less than 90 days => weeks
+		aggregationInterval = 7 * 24 * 60 * 60;
+	} else { // else => months (30 days)
+		aggregationInterval = 30 * 24 * 60 * 60;
+	}
+	return {
+		startDate: startDate,
+		endDate: endDate,
+		aggregationInterval: aggregationInterval
+	};
+};
+
+var getData = function() {
+	return [
+		{ date: new Date(2017, 3, 30, 10, 10, 10, 0), close: 122 },
+		{ date: new Date(2017, 3, 30, 10, 10, 11, 0), close: 422 },
+		{ date: new Date(2017, 3, 30, 11, 10, 10, 0), close: 132 },
+		{ date: new Date(2017, 4, 1, 0, 10, 10, 0), close: 1032 }
+	];
+};
+
+var prepareData = function(data, startDate, endDate, aggregationInterval) {
+	var dotCount = Math.ceil(((endDate - startDate) / 1000) / aggregationInterval);
+	
+	var aggregatedData = new Array(dotCount);
+	for (var i = 0; i < dotCount; ++i) {
+		aggregatedData[i] = { date: new Date(startDate.getTime() + i * aggregationInterval * 1000), close: 0, number: 0 };
+	}
+	
+	for (var i = 0; i < data.length; ++i) {
+		if (data[i].date > startDate && data[i].date <= endDate) {
+			var index = Math.floor(((data[i].date - startDate) / 1000) / aggregationInterval);
+			aggregatedData[index].close += data[i].close;
+			++aggregatedData[index].number;
+		}
+	}
+	
+	for (var i = 0; i < aggregatedData; ++i) {
+		if (aggregatedData[i].number > 0) {
+			aggregatedData[i].close = aggregatedData[i].close / aggregatedData[i].number;
+		}
+	}
+	
+	return aggregatedData;
+};
+
+var margin = {top: 30, right: 20, bottom: 30, left: 50},
+    width = 600 - margin.left - margin.right,
+    height = 270 - margin.top - margin.bottom;
+
+var x = d3.time.scale().range([0, width]);
+var y = d3.scale.linear().range([height, 0]);
+
+// Define the axes
+var xAxis = d3.svg.axis().scale(x)
+    .orient("bottom").ticks(5);
+
+var yAxis = d3.svg.axis().scale(y)
+    .orient("left").ticks(5);
+
+// Define the line
+var valueline = d3.svg.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d.close); });
+
+var buildGraph = function() {
+	var settings = getSettings();
+	var startDate = settings.startDate;
+	var endDate = settings.endDate;
+	var aggregationInterval = settings.aggregationInterval;
+	
+	
+	
+	
+	
+	var svg = d3.select('svg');
+	if (svg.size() == 0) {
+		svg = d3.select('body').append('svg')
+					.attr("width", width + margin.left + margin.right)
+					.attr("height", height + margin.top + margin.bottom)
+			.append("g")
+					.attr("transform", 
+								"translate(" + margin.left + "," + margin.top + ")");
+								
+		
+		
+	} else {
+		svg.remove();
+		svg = d3.select('body').append('svg')
+					.attr("width", width + margin.left + margin.right)
+					.attr("height", height + margin.top + margin.bottom)
+			.append("g")
+					.attr("transform", 
+								"translate(" + margin.left + "," + margin.top + ")");
+	}
+	
+	var data = prepareData(getData(), startDate, endDate, aggregationInterval);
+	
+	// Scale the range of the data
+	x.domain(d3.extent(data, function(d) { return d.date; }));
+	y.domain([0, d3.max(data, function(d) { return d.close; })]);
+
+	// Add the valueline path.
+	svg.append("path")
+		.attr("class", "line")
+		.attr("d", function() { console.log(valueline(data)); return valueline(data); });
+			
+		// Add the X Axis
+	svg.append("g")
+		.attr("class", "x axis")
+		.attr("transform", "translate(0," + height + ")")
+		.call(xAxis);
+
+	// Add the Y Axis
+	svg.append("g")
+		.attr("class", "y axis")
+		.call(yAxis);
+	
+	
+};
+
+var updateGraph = function() {
+
+};
+
+setFormDefaults();
+buildGraph();
+document.getElementById('apply-settings').addEventListener('click', function() {
+	buildGraph();
+});
+
+
+/*
+
+// Set the dimensions of the canvas / graph
+var margin = {top: 30, right: 20, bottom: 30, left: 50},
+    width = 600 - margin.left - margin.right,
+    height = 270 - margin.top - margin.bottom;
+
+// Parse the date / time
+var parseDate = d3.time.format("%d-%b-%y").parse;
+
+// Set the ranges
+var x = d3.time.scale().range([0, width]);
+var y = d3.scale.linear().range([height, 0]);
+
+// Define the axes
+var xAxis = d3.svg.axis().scale(x)
+    .orient("bottom").ticks(5);
+
+var yAxis = d3.svg.axis().scale(y)
+    .orient("left").ticks(5);
+
+// Define the line
+var valueline = d3.svg.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d.close); });
+    
+// Adds the svg canvas
+var svg = d3.select("body")
+    .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+        .attr("transform", 
+              "translate(" + margin.left + "," + margin.top + ")");
+
+// Get the data
+var lastDataLength = 0;
+
+d3.csv("data.csv", function(error, data) {
+    data.forEach(function(d) {
+        d.date = parseDate(d.date);
+        d.close = +d.close;
+    });
+		
+		lastDataLength = data.length;
+
+    // Scale the range of the data
+    x.domain(d3.extent(data, function(d) { return d.date; }));
+    y.domain([0, d3.max(data, function(d) { return d.close; })]);
+
+    // Add the valueline path.
+    svg.append("path")
+        .attr("class", "line")
+        .attr("d", function() { console.log(valueline(data)); return valueline(data); });
+
+    // Add the X Axis
+    svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+
+    // Add the Y Axis
+    svg.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+
+});
+
+var inter = setInterval(function() {
+                updateData();
+        }, 10000); 
+
+// ** Update data section (Called from the onclick)
+function updateData() {
+
+    // Get the data again
+    d3.csv("data-alt.csv", function(error, data) {
+       	data.forEach(function(d) {
+	    	d.date = parseDate(d.date);
+	    	d.close = +d.close;
+	    });
+			
+			console.log(lastDataLength, data.length);
+			
+    	// Scale the range of the data again 
+    	x.domain(d3.extent(data, function(d) { return d.date; }));
+	    y.domain([0, d3.max(data, function(d) { return d.close; })]);
+
+    // Select the section we want to apply our changes to
+    var svg = d3.select("body").transition();
+
+    // Make the changes
+        svg.select(".line")   // change the line
+            .duration(750)
+            .attr("d", valueline(data));
+        svg.select(".x.axis") // change the x axis
+            .duration(750)
+            .call(xAxis);
+        svg.select(".y.axis") // change the y axis
+            .duration(750)
+            .call(yAxis);
+
+    });
+}
+*/
+
+</script>
+</body>
