@@ -1,0 +1,37 @@
+path.line-0 { 
+    stroke: #f46542;
+    stroke-width: 2;
+		stroke-dasharray: 5 5;
+    fill: none;
+}
+
+path.line-1 { 
+    stroke: #110654;
+    stroke-width: 2;
+    fill: none;
+}
+
+path.line-2 { 
+    stroke: #a3f441;
+    stroke-width: 2;
+		stroke-dasharray: 5 5;
+    fill: none;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: grey;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+.svg-container {
+	padding-top: 1rem;
+	padding-bottom: 1rem;
+	text-align: center;
+}
+
+form {
+	padding-bottom: 2rem;
+}

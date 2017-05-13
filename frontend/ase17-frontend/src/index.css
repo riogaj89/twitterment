@@ -1,0 +1,153 @@
+html, body {
+	background-color: transparent;
+}
+
+.header-ribbon-1 {
+	background-color: rgba(0, 0, 0, 0.9);
+	border-bottom: 2px solid orange;
+	color: #999999;
+	min-height: 10vh;
+	padding-top: 1vh;
+}
+
+.brand {
+	display: block;
+	background-image: url('/brand.png');
+	min-height: 8vh;
+	background-size: contain;
+	background-repeat: no-repeat;
+}
+
+.input-section-1 {
+	min-height: 90vh;
+	background-image: url('/bird_001.jpg');
+	background-size: cover;
+	background-repeat: no-repeat;
+	background-position: top center;
+}
+
+.header-ribbon-1 p {
+	margin-top: 1vh;
+	margin-bottom: 0px;
+}
+
+.header-ribbon-1 button {
+	margin-left: 1rem;
+	background-color: #333333;
+	border-color: #666666;
+	color: #999999;
+}
+
+.header-ribbon-1 button:hover,
+.header-ribbon-1 button:active,
+.header-ribbon-1 button:focus {
+	background-color: #444444;
+	border-color: #777777;
+	color: #999999;
+}
+
+
+.input-section-1-content-1 {
+	width: 50%;
+	margin: 10% auto;
+	background-color: rgba(255, 255, 255, 0.6);
+	border-radius: 1rem;
+	padding: 2rem;
+}
+
+.loader-block {
+	height: 50px;
+	background-image: url('/loading.gif');
+	background-position: center center;
+	background-repeat: no-repeat;
+}
+
+.medium-vertical-margin {
+	margin-top: 1rem;
+	margin-bottom: 1rem;
+}
+
+.output-section-1.output-hidden {
+	display: none;
+}
+
+.output-section-1.output-visible {
+	min-height: 400px;
+}
+
+.x-scroll {
+	width: 100%;
+	overflow-x: auto;
+}
+
+.bar-chart-1 {
+	height: 30px;
+	transition: opacity 0.4s;
+	opacity: 0.4;
+}
+
+.bar-chart-1.chart-active {
+	opacity: 1;
+}
+
+.bar-chart-1 .bar {
+	height: 100%;
+	overflow: hidden;
+	transition: width 0.4s;
+	float: left;
+	margin-top: 2rem;
+	margin-bottom: 2rem;
+}
+
+.bar-chart-1 .negative-bar {
+	border-top-left-radius: 5px;
+	border-bottom-left-radius: 5px;
+	background-color: #990f0f;
+}
+
+.bar-chart-1 .neutral-bar {
+	background-color: #02073d;
+}
+
+.bar-chart-1 .positive-bar {
+	border-top-right-radius: 5px;
+	border-bottom-right-radius: 5px;
+	background-color: #144703;
+}
+
+.line-chart-1-svg path.line-0 {
+    stroke: #f46542;
+    stroke-width: 2;
+		stroke-dasharray: 5 5;
+    fill: none;
+}
+
+.line-chart-1-svg path.line-1 { 
+    stroke: #110654;
+    stroke-width: 2;
+		stroke-dasharray: 5 5;
+    fill: none;
+}
+
+.line-chart-1-svg path.line-2 { 
+    stroke: #a3f441;
+    stroke-width: 2;
+		stroke-dasharray: 5 5;
+    fill: none;
+}
+
+.line-chart-1-svg path.line-3 { 
+    stroke: #5f1696;
+    stroke-width: 2;
+    fill: none;
+}
+
+.line-chart-1-svg .axis path,
+.line-chart-1-svg .axis line {
+    fill: none;
+    stroke: grey;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+
