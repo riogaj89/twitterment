@@ -16,8 +16,6 @@ import './App.css';
 
 class App extends Component {
 	
-	
-	
 	constructor(props) {
 		super(props);
 		
@@ -120,8 +118,6 @@ class App extends Component {
 		// ... ^^^ ... LINE CHART 1 PROPERTIES ...................................
 	}
 	
-	
-	
 	// --- vvv --- GENERAL UTILITY ---------------------------------------------
 	
 	renderArray(arr, rendererFunction, thisArg) {
@@ -148,10 +144,6 @@ class App extends Component {
 	}
 	
 	// --- ^^^ --- GENERAL UTILITY ---------------------------------------------
-	
-	
-	
-	
 	
 	// --- vvv --- LAMBDA REQUESTS ---------------------------------------------
 	
@@ -258,7 +250,7 @@ class App extends Component {
 			return response.json();
 		})
 		.then(function (loadedData) {
-			console.log(url, fromTimestamp, toTimestamp, loadedData);
+			// console.log(url, fromTimestamp, toTimestamp, loadedData);
 			var tweets = [];
 			config.lambda.getTweets.response.items(loadedData, userId, word, fromTimestamp, toTimestamp, function(item) {
 				tweets.push({
@@ -267,7 +259,7 @@ class App extends Component {
 					createdAt: config.lambda.getTweets.response.createdAt(item)
 				});
 			}, thisArg);
-			tweets.sort(function(a, b) { return a.createdAt - b.createdAt });
+			tweets.sort(function(a, b) { return a.createdAt - b.createdAt }); // xxa xxb
 			
 			listenerFunction.apply(thisArg, [tweets]);
 		}).catch(function(e) {
@@ -275,6 +267,37 @@ class App extends Component {
 			console.log(e);
 			listenerFunction.apply(thisArg, [null]);
 		});
+	}
+	
+	produceRandomTweets(number, listenerFunction, thisArg, waitForResponse) {
+		var url = config.lambda.produceRandomTweets.url(
+			config.lambda.produceRandomTweets.params.number, number
+		);
+		console.log(url);
+		
+		fetch(url, {
+			method: 'get',
+			headers: {
+				'Accept': 'application/json, text/plain, */*'
+			}
+		})
+		.then(function (response) {
+			return response.text();
+		})
+		.then(function (loadedData) {
+			if (waitForResponse) {
+				listenerFunction.apply(thisArg, [true]);
+			}
+		}).catch(function(e) {
+			console.log('Loading tweets failed. Error:');
+			console.log(e);
+			if (waitForResponse) {
+				listenerFunction.apply(thisArg, [false]);
+			}
+		});
+		if (!waitForResponse) {
+			listenerFunction.apply(thisArg, [true]);
+		}
 	}
 	
 	// --- ^^^ --- LAMBDA REQUESTS ---------------------------------------------
@@ -316,9 +339,9 @@ class App extends Component {
 	runDemoTask(demoCount) {
 		this.setState({ demoTaskDone: false });
 		
-		console.log('hansi');
-		
-		this.setState({ demoTaskDone: true });
+		this.produceRandomTweets(demoCount, function(success) {
+			this.setState({ demoTaskDone: true });
+		}, this, false);
 	}
 	
 	// --- ^^^ --- DEMO --------------------------------------------------------
@@ -366,7 +389,7 @@ class App extends Component {
 			loadStartTimestamp: this.state.loadTimesKnown ? this.state.loadStartTimestamp : fromTimestamp,
 			loadEndTimestamp: toTimestamp,
 			loadTimesKnown: true,
-			tweets: allTweets, // xx
+			tweets: allTweets, // xxa xxb
 			tweetPoints: tweetPoints,
 			aggregationMillis: aggregationMillis
 		});
@@ -483,11 +506,6 @@ class App extends Component {
 	}
 	
 	// --- ^^^ --- TWEET PROCESSING ---------------------------------------------
-	
-	
-	
-	
-	
 	
 	// --- vvv --- USER ID FORM / REGISTRATION ---------------------------------
 	
@@ -702,7 +720,7 @@ class App extends Component {
 					readyForInteraction: true,
 					registrationInProgress: false,
 					registrationFormShown: false
-				})
+				});
 			}, this);
 		}
 	}
@@ -772,16 +790,6 @@ class App extends Component {
 	
 	// --- ^^^ --- USER ID FORM / REGISTRATION ---------------------------------
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	// --- vvv --- WORD FORM ---------------------------------------------------
 	
 	wordSubmitted(event) {
@@ -792,6 +800,7 @@ class App extends Component {
 		}
 		if (this.state.provisionalWord.length > 0) {
 			var word = this.state.provisionalWord;
+			
 			this.setState({
 				readyForInteraction: false,
 				
@@ -830,16 +839,46 @@ class App extends Component {
 				
 				demoCount: 0
 			});
-			this.resetLineChart1();
+			
+			if (this.state.suggestedWords !== null) {
+				this.finishWordSubmission(word, this.state.suggestedWords.indexOf(word) === -1);
+			} else {
+				this.setState({
+					suggestedWordsLoading: true
+				});
+				this.getWords(this.state.userId, function(words) {
+					this.setState({
+						suggestedWordsLoading: false
+					});
+					this.finishWordSubmission(word, words.indexOf(word) === -1);
+				}, this);
+			}
+		} else {
+			this.setState({ wordValidationState: 'error' });
+		}
+	}
+	
+	finishWordSubmission(word, addWord) {
+		this.resetLineChart1();
+		if (addWord) {
 			this.addWord(this.state.userId, word, (new Date()).getTime(), function(success) {
+				var newSuggestedWords = this.state.suggestedWords.slice();
+				newSuggestedWords.push(word);
+				newSuggestedWords.sort(function(a, b) { return a.text.localeCompare(b.text); });
+				
 				this.setState({
 					submittingWord: false,
 					readyForInteraction: true,
-					autoupdatePaused: false
-				})
+					autoupdatePaused: false,
+					suggestedWords: newSuggestedWords
+				});
 			}, this);
 		} else {
-			this.setState({ wordValidationState: 'error' });
+			this.setState({
+				submittingWord: false,
+				readyForInteraction: true,
+				autoupdatePaused: false
+			});
 		}
 	}
 	
@@ -866,16 +905,6 @@ class App extends Component {
 	}
 	
 	// --- ^^^ --- WORD FORM ---------------------------------------------------
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	
 	// --- vvv --- WORD SUGGESTIONS --------------------------------------------
 	
@@ -986,19 +1015,6 @@ class App extends Component {
 	
 	// --- ^^^ --- WORD SUGGESTIONS --------------------------------------------
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	// --- vvv --- AUTOUPDATING ------------------------------------------------
 	
 	runAutoupdate() {
@@ -1040,13 +1056,6 @@ class App extends Component {
 	}
 	
 	// --- ^^^ --- AUTOUPDATING ------------------------------------------------
-	
-	
-	
-	
-	
-	
-	
 	
 	// --- vvv --- DATA VISUALIZATION ------------------------------------------
 	
@@ -1115,19 +1124,6 @@ class App extends Component {
 	
 	// --- ^^^ --- DATA VISUALIZATION ------------------------------------------
 	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	// --- vvv --- MAIN RENDERING METHOD ---------------------------------------
 	
 	render() {
@@ -1176,10 +1172,6 @@ class App extends Component {
 							</div>
 						</div>
 						<div className="col-xs-12 col-sm-4">
-						
-							
-							
-							
 							<div className="row">
 								<div className="col-xs-12 col-sm-8">
 									Total Number
@@ -1221,39 +1213,10 @@ class App extends Component {
 									{ this.renderDisplayedTweets() }
 								</div>
 							</div>
-							
-							
-							
-							
-							
 						</div>
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
 					</div>
 					
-					
-					
-					
-					
-					
-					
 					<div className="row">
-					
-					
-						
-						
-						
-						
-						
 						<div className="col-xs-12 col-sm-4">
 							<div className="row">
 								<div className="col-xs-12 col-sm-8">
@@ -1283,9 +1246,6 @@ class App extends Component {
 							</div>
 						</div>
 						
-						
-						
-						
 						<div className="col-xs-12 col-sm-4">
 							<div className="row">
 								<div className="col-xs-12 col-sm-8">
@@ -1314,13 +1274,7 @@ class App extends Component {
 								</div>
 							</div>
 						</div>
-						
-							
-						
-						
-						
 						<div className="col-xs-12 col-sm-4">
-							
 							<div className="row">
 								<div className="col-xs-12 col-sm-8">
 									Number of Positive
@@ -1348,12 +1302,7 @@ class App extends Component {
 								</div>
 							</div>
 						</div>
-						
-						
-						
 					</div>
-					
-					
 					
 					<div className="row">
 						<div className="col-xs-12">
@@ -1381,9 +1330,6 @@ class App extends Component {
 	
 	// --- ^^^ --- MAIN RENDERING METHOD ---------------------------------------
 	
-	
-	
-	
 	// --- vvv --- LIFECYCLE EVENTS --------------------------------------------
 	
 	async componentDidMount() {
@@ -1402,7 +1348,6 @@ class App extends Component {
 	}
 	
 	// --- ^^^ --- LIFECYCLE EVENTS --------------------------------------------
-	
 }
 
 export default App;

@@ -4,11 +4,17 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: origin, content-type, accept');
 header('Content-Type: application/json');
 
+/*
 function word($text, $createdAt) {
 	return array(
 		'text' => $text,
 		'createdAt' => $createdAt->format('U') * 1000
 	);
+}
+*/
+
+function word($text, $createdAt) {
+	return $text;
 }
 
 $data = array(

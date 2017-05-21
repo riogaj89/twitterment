@@ -63,6 +63,14 @@ export default {
 				score: function(item, userId, word, fromTimestamp, toTimestamp) { return item.sentiment_score; },
 				createdAt: function(item, userId, word, fromTimestamp, toTimestamp) { return item.createdAt; },
 			}
+		},
+		produceRandomTweets: {
+			url: function(numberName, numberValue) { return 'http://localhost/ase17/random_tweets.php?' + encodeURIComponent(numberName) + '=' + encodeURIComponent(numberValue); },
+			// url: function(numberName, numberValue) { return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/keyword?' + encodeURIComponent(numberName) + '=' + encodeURIComponent(numberValue); },
+			params: {
+				number: 'number'
+			},
+			response: {}
 		}
 	},
 	sentiment: {

@@ -3,11 +3,15 @@
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: origin, content-type, accept');
 header('Content-Type: application/json');
-
+/*
 $postArgs = json_decode(file_get_contents('php://input'));
 
 $fromSeconds = floatval($postArgs->fromTimestamp);
 $toSeconds = floatval($postArgs->toTimestamp);
+*/
+
+$fromSeconds = floatval($_GET['fromTimestamp']);
+$toSeconds = floatval($_GET['toTimestamp']);
 
 function randomString() {
 	$lists = array(
@@ -53,7 +57,7 @@ function randomTweets($fromMillis, $toMillis, $minNumber, $maxNumber, $minScore,
 	return $tweets;
 }
 
-$data = randomTweets($fromSeconds, $toSeconds, 0, 100, -10, 10);
+$data = randomTweets($fromSeconds, $toSeconds, 0, 1000, -10, 10);
 
 // sleep(1);
 
