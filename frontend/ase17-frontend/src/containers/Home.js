@@ -10,7 +10,7 @@ class Home extends Component {
     return (
       <div className="Home">
         <div className="lander">
-          <h1>Twitterment</h1>
+          <h1>LambdaLytics</h1>
           <p>A twitter sentiment analysis app</p>
 					<p>Demos</p>
 					<ul>

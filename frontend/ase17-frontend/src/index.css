@@ -67,6 +67,10 @@ html, body {
 	margin-bottom: 1rem;
 }
 
+.medium-top-margin {
+	margin-top: 1rem;
+}
+
 .output-section-1.output-hidden {
 	display: none;
 }
@@ -116,38 +120,68 @@ html, body {
 }
 
 .line-chart-1-svg path.line-0 {
-    stroke: #f46542;
-    stroke-width: 2;
-		stroke-dasharray: 5 5;
-    fill: none;
+	stroke: #f46542;
+	stroke-width: 2;
+	stroke-dasharray: 5 5;
+	fill: none;
 }
 
 .line-chart-1-svg path.line-1 { 
-    stroke: #110654;
-    stroke-width: 2;
-		stroke-dasharray: 5 5;
-    fill: none;
+	stroke: #110654;
+	stroke-width: 2;
+	stroke-dasharray: 5 5;
+	fill: none;
 }
 
 .line-chart-1-svg path.line-2 { 
-    stroke: #a3f441;
-    stroke-width: 2;
-		stroke-dasharray: 5 5;
-    fill: none;
+	stroke: #a3f441;
+	stroke-width: 2;
+	stroke-dasharray: 5 5;
+	fill: none;
 }
 
 .line-chart-1-svg path.line-3 { 
-    stroke: #5f1696;
-    stroke-width: 2;
-    fill: none;
+	stroke: #5f1696;
+	stroke-width: 2;
+	fill: none;
 }
 
 .line-chart-1-svg .axis path,
 .line-chart-1-svg .axis line {
-    fill: none;
-    stroke: grey;
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+	fill: none;
+	stroke: grey;
+	stroke-width: 1;
+	shape-rendering: crispEdges;
+}
+
+.displayed-tweets {
+	margin: 0px;
+	padding: 0px;
+	max-height: 230px;
+	overflow-y: auto;
+}
+
+.displayed-tweet {
+	list-style-type: none;
+	list-style-position: outside;
+	margin: 1rem 0px;
+	padding: 0.5rem;
+	transition: background-color 0.5s;
+}
+
+.displayed-tweet.sentiment-class-0 {
+	border: 2px solid #990f0f;
+	background-color: #e88f8f;
+}
+
+.displayed-tweet.sentiment-class-1 {
+	border: 2px solid #02073d;
+	background-color: #818aef;
+}
+
+.displayed-tweet.sentiment-class-2 {
+	border: 2px solid #144703;
+	background-color: #74c659;
 }
 
 

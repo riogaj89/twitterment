@@ -1,36 +1,66 @@
 export default {
 	lambda:  {
-		getWords: {
-			url: 'http://localhost/ase17/words.php',
+		addUser: {
+			// url: 'http://localhost/ase17/user.php',
+			url: 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/user',
 			params: {
-				userId: 'user'
+				userId: 'userId',
+				createdAt: 'createdAt',
+				consumerKey: 'consumer_key',
+				consumerSecret: 'consumer_secret',
+				accessToken: 'access_token_key',
+				accessTokenSecret: 'access_token_secret'
+			},
+			response: {}
+		},
+		getWords: {
+			// url: function(userIdName, userIdValue) { return 'http://localhost/ase17/words.php?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue); },
+			url: function(userIdName, userIdValue) { return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/keyword?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue); },
+			params: {
+				userId: 'userId'
 			},
 			response: {
-				items: function(data, userId, processor, thisArg) { data.forEach(processor, thisArg); },
-				text: function(item, userId) { return item.text; }
+				// items: function(data, userId, processor, thisArg) { data.forEach(processor, thisArg); },
+				// text: function(item, userId) { return item; }
+				items: function(data, userId, processor, thisArg) { data.keywords.forEach(processor, thisArg); },
+				text: function(item, userId) { return item.keyword; }
 			}
 		},
 		addWord: {
-			url: 'http://localhost/ase17/add.php',
+			url: 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/keyword',
 			params: {
-				userId: 'user',
-				word: 'word',
+				userId: 'userId',
+				word: 'keyword',
 				createdAt: 'createdAt'
 			},
 			response: {}
 		},
 		getTweets: {
-			url: 'http://localhost/ase17/tweets.php',
+			/*url: function(userIdName, userIdValue, wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
+				return 'http://localhost/ase17/tweets.php'
+					+ '?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue)
+					+ '&' + encodeURIComponent(wordName) + '=' + encodeURIComponent(wordValue)
+					+ '&' + encodeURIComponent(fromTimestampName) + '=' + encodeURIComponent(fromTimestampValue)
+					+ '&' + encodeURIComponent(toTimestampName) + '=' + encodeURIComponent(toTimestampValue);
+			},*/
+			//
+			url: function(userIdName, userIdValue, wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
+				return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/tweets'
+					+ '?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue)
+					+ '&' + encodeURIComponent(wordName) + '=' + encodeURIComponent(wordValue)
+					+ '&' + encodeURIComponent(fromTimestampName) + '=' + encodeURIComponent(fromTimestampValue)
+					+ '&' + encodeURIComponent(toTimestampName) + '=' + encodeURIComponent(toTimestampValue);
+			},
 			params: {
-				userId: 'user',
-				word: 'word',
+				userId: 'username',
+				word: 'keyword',
 				fromTimestamp: 'fromTimestamp',
 				toTimestamp: 'toTimestamp'
 			},
 			response: {
-				items: function(data, userId, word, fromTimestamp, toTimestamp, processor, thisArg) { data.forEach(processor, thisArg); },
+				items: function(data, userId, word, fromTimestamp, toTimestamp, processor, thisArg) { data.tweets.forEach(processor, thisArg); },
 				text: function(item, userId, word, fromTimestamp, toTimestamp) { return item.text; },
-				score: function(item, userId, word, fromTimestamp, toTimestamp) { return item.score; },
+				score: function(item, userId, word, fromTimestamp, toTimestamp) { return item.sentiment_score; },
 				createdAt: function(item, userId, word, fromTimestamp, toTimestamp) { return item.createdAt; },
 			}
 		}
@@ -46,6 +76,7 @@ export default {
 		{ fromSeconds:  60 * 24 * 60 * 60, millis:     24 * 60 * 60 * 1000 }, // less than  1 year => 1 day
 		{ fromSeconds: 365 * 24 * 60 * 60, millis: 7 * 24 * 60 * 60 * 1000 }  // from       1 year => 1 week
 	],
+	tweetFetchLag: 7500,
 	lineChart1: {
 		width: 600,
 		height: 270,

@@ -28,6 +28,25 @@ class App extends Component {
 			provisionalUserId: '',
 			userIdValidationState: null,
 			
+			registrationFormShown: false,
+			registrationInProgress: false,
+			
+			consumerKey: null,
+			provisionalConsumerKey: '',
+			consumerKeyValidationState: null,
+			
+			consumerSecret: null,
+			provisionalConsumerSecret: '',
+			consumerSecretValidationState: null,
+			
+			accessToken: null,
+			provisionalAccessToken: '',
+			accessTokenValidationState: null,
+			
+			accessTokenSecret: null,
+			provisionalAccessTokenSecret: '',
+			accessTokenSecretValidationState: null,
+			
 			word: null,
 			provisionalWord: '',
 			wordValidationState: null,
@@ -60,11 +79,21 @@ class App extends Component {
 			totalCount: 0,
 			totalAverage: 0,
 			
+			displayedTweets: [],
+			displayedTweetsAge: 3,
+			displayedTweetsMaxAge: 3,
+			displayedTweetsMaxCount: 5,
+			
 			autoupdateInterval: 1000,
 			autoupdatePaused: true,
 			autoupdateDone: true,
 			autoupdateLoopStarted: false,
-			remainingAutoupdates: -1
+			remainingAutoupdates: -1,
+			
+			demoCount: 0,
+			demoLoopStarted: false,
+			demoTaskDone: true,
+			demoLoopInterval: 1000
 		};
 		
 		// ... vvv ... LINE CHART 1 PROPERTIES ...................................
@@ -112,6 +141,12 @@ class App extends Component {
 		return (100 * part / total).toFixed(3) + '%';
 	}
 	
+	insertThousendSeparators(posInt) {
+		var str = '' + posInt;
+		var m = new RegExp('(\\d{1,3})((\\d{3})*)$').exec(str);
+		return m[1] + (typeof m[2] !== 'undefined' ? (m[2].replace(new RegExp('\\d{3}', 'g'), function(t) { return '\'' + t; })) : '');
+	}
+	
 	// --- ^^^ --- GENERAL UTILITY ---------------------------------------------
 	
 	
@@ -120,17 +155,44 @@ class App extends Component {
 	
 	// --- vvv --- LAMBDA REQUESTS ---------------------------------------------
 	
-	getWords(userId, listenerFunction, thisArg) {
+	addUser(userId, createdAt, consumerKey, consumerSecret, accessToken, accessTokenSecret, listenerFunction, thisArg) {
 		var body = {};
-		body[config.lambda.getWords.params.userId] = userId;
+		body[config.lambda.addUser.params.userId] = userId;
+		body[config.lambda.addUser.params.userId] = userId;
+		body[config.lambda.addUser.params.createdAt] = createdAt;
+		body[config.lambda.addUser.params.consumerKey] = consumerKey;
+		body[config.lambda.addUser.params.consumerSecret] = consumerSecret;
+		body[config.lambda.addUser.params.accessToken] = accessToken;
+		body[config.lambda.addUser.params.accessTokenSecret] = accessTokenSecret;
 		
-		fetch(config.lambda.getWords.url, {
+		fetch(config.lambda.addUser.url, {
 			method: 'post',
 			headers: {
 				'Accept': 'application/json, text/plain, */*',
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify(body)
+		})
+		.then(function (response) {
+			return response.text();
+		})
+		.then(function (data) {
+			listenerFunction.apply(thisArg, [true]);
+		}).catch(function(e) {
+			console.log('Loading words failed. Error:');
+			console.log(e);
+			listenerFunction.apply(thisArg, [false]);
+		});
+	}
+	
+	getWords(userId, listenerFunction, thisArg) {
+		var url = config.lambda.getWords.url(config.lambda.getWords.params.userId, userId);
+		
+		fetch(url, {
+			method: 'get',
+			headers: {
+				'Accept': 'application/json, text/plain, */*'
+			}
 		})
 		.then(function (response) {
 			return response.json();
@@ -145,7 +207,7 @@ class App extends Component {
 			words.sort(function(a, b) { return a.text.localeCompare(b.text); });
 			listenerFunction.apply(thisArg, [words]);
 		}).catch(function(e) {
-			console.log('Loading words failed. Error:');
+			console.log('Adding user failed. Error:');
 			console.log(e);
 			listenerFunction.apply(thisArg, [null]);
 		});
@@ -169,33 +231,34 @@ class App extends Component {
 			return response.text();
 		})
 		.then(function (data) {
-			listenerFunction.apply(thisArg, [true]);
+			// listenerFunction.apply(thisArg, [true]);
 		}).catch(function(e) {
 			console.log('Submitting word failed. Error:');
 			console.log(e);
-			listenerFunction.apply(thisArg, [false]);
+			// listenerFunction.apply(thisArg, [false]);
 		});
+		listenerFunction.apply(thisArg, [true]);
 	}
 	
 	getTweets(userId, word, fromTimestamp, toTimestamp, listenerFunction, thisArg) {
-		var body = {};
-		body[config.lambda.getTweets.params.userId] = userId;
-		body[config.lambda.getTweets.params.word] = word;
-		body[config.lambda.getTweets.params.fromTimestamp] = fromTimestamp;
-		body[config.lambda.getTweets.params.toTimestamp] = toTimestamp;
+		var url = config.lambda.getTweets.url(
+			config.lambda.getTweets.params.userId, userId,
+			config.lambda.getTweets.params.word, word,
+			config.lambda.getTweets.params.fromTimestamp, fromTimestamp,
+			config.lambda.getTweets.params.toTimestamp, toTimestamp
+		);
 		
-		fetch(config.lambda.getTweets.url, {
-			method: 'post',
+		fetch(url, {
+			method: 'get',
 			headers: {
-				'Accept': 'application/json, text/plain, */*',
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(body)
+				'Accept': 'application/json, text/plain, */*'
+			}
 		})
 		.then(function (response) {
 			return response.json();
 		})
 		.then(function (loadedData) {
+			console.log(url, fromTimestamp, toTimestamp, loadedData);
 			var tweets = [];
 			config.lambda.getTweets.response.items(loadedData, userId, word, fromTimestamp, toTimestamp, function(item) {
 				tweets.push({
@@ -216,7 +279,49 @@ class App extends Component {
 	
 	// --- ^^^ --- LAMBDA REQUESTS ---------------------------------------------
 	
+	// --- vvv --- DEMO --------------------------------------------------------
 	
+	getNextDemoCount(demoCount) {
+		if (demoCount === 0) return 1;
+		if (demoCount >= 10000) return demoCount;
+		return 10 * demoCount;
+	}
+	
+	demoCountIncreaseRequested(event) {
+		event.preventDefault();
+		if (!this.state.readyForInteraction) {
+			alert('I am busy, please wait');
+			return;
+		}
+		
+		this.setState({
+			demoCount: this.getNextDemoCount(this.state.demoCount)
+		})
+	}
+	
+	startDemoLoop() {
+		if (!this.state.demoLoopStarted) {
+			this.demoLoop();
+		}
+	}
+	
+	demoLoop() {
+		var demoCount = this.state.demoCount;
+		if (this.state.demoCount > 0 && this.state.demoTaskDone) {
+			this.runDemoTask(demoCount);
+		}
+		setTimeout(() => this.demoLoop(), this.state.demoLoopInterval);
+	}
+	
+	runDemoTask(demoCount) {
+		this.setState({ demoTaskDone: false });
+		
+		console.log('hansi');
+		
+		this.setState({ demoTaskDone: true });
+	}
+	
+	// --- ^^^ --- DEMO --------------------------------------------------------
 	
 	// --- vvv --- TWEET PROCESSING --------------------------------------------
 	
@@ -247,10 +352,12 @@ class App extends Component {
 			tweetPoints.push(loadedTweetPoints[i]);
 		}
 		
+		// xxa
 		var allTweets = this.state.tweets.slice();
 		loadedTweets.forEach(function(tweet) {
 			allTweets.push(tweet);
 		}, this);
+		// xxb
 		
 		var updatedStats = this.getUpdatedTweetStats(loadedTweets);
 		this.setState(updatedStats);
@@ -259,7 +366,7 @@ class App extends Component {
 			loadStartTimestamp: this.state.loadTimesKnown ? this.state.loadStartTimestamp : fromTimestamp,
 			loadEndTimestamp: toTimestamp,
 			loadTimesKnown: true,
-			tweets: allTweets,
+			tweets: allTweets, // xx
 			tweetPoints: tweetPoints,
 			aggregationMillis: aggregationMillis
 		});
@@ -274,6 +381,7 @@ class App extends Component {
 	}
 	
 	combineTweetPoints(basePoint, addedPoint) {
+		if (!basePoint) return;
 		for (var i = 0; i < basePoint.values.length; ++i) {
 			basePoint.values[i] += addedPoint.values[i];
 		}
@@ -366,6 +474,14 @@ class App extends Component {
 		return stats;
 	}
 	
+	updateDisplayedTweets(tweets) {
+		var displayedTweets = [];
+		for (var i = 0; i < Math.min(this.state.displayedTweetsMaxCount, tweets.length); ++i) {
+			displayedTweets.push(tweets[i]);
+		}
+		this.setState({ displayedTweets: displayedTweets });
+	}
+	
 	// --- ^^^ --- TWEET PROCESSING ---------------------------------------------
 	
 	
@@ -373,7 +489,7 @@ class App extends Component {
 	
 	
 	
-	// --- vvv --- USER ID FORM ------------------------------------------------
+	// --- vvv --- USER ID FORM / REGISTRATION ---------------------------------
 	
 	provisionalUserIdChanged(event) {
 		event.preventDefault();
@@ -394,6 +510,22 @@ class App extends Component {
 			userId: null,
 			provisionalUserId: '',
 			userIdValidationState: null,
+			
+			consumerKey: null,
+			provisionalConsumerKey: '',
+			consumerKeyValidationState: null,
+			
+			consumerSecret: null,
+			provisionalConsumerSecret: '',
+			consumerSecretValidationState: null,
+			
+			accessToken: null,
+			provisionalAccessToken: '',
+			accessTokenValidationState: null,
+			
+			accessTokenSecret: null,
+			provisionalAccessTokenSecret: '',
+			accessTokenSecretValidationState: null,
 			
 			word: null,
 			provisionalWord: '',
@@ -425,7 +557,12 @@ class App extends Component {
 			totalCount: 0,
 			totalAverage: 0,
 			
-			autoupdatePaused: true
+			displayedTweets: [],
+			displayedTweetsAge: this.state.displayedTweetsMaxAge,
+			
+			autoupdatePaused: true,
+			
+			demoCount: 0
 		});
 		
 		this.resetLineChart1();
@@ -456,7 +593,7 @@ class App extends Component {
 	renderUserIdForm() {
 		return <form onSubmit={(event) => this.userIdSubmitted(event)}>
 			<FormGroup controlId="userId" bsSize="large" validationState={this.state.userIdValidationState}>
-				<ControlLabel>What is your username?</ControlLabel>
+				<ControlLabel>What is your username, registered user?</ControlLabel>
 				<FormControl
 					autoFocus
 					type="text"
@@ -465,6 +602,13 @@ class App extends Component {
 				/>
 			</FormGroup>
 			<Button block disabled={!this.state.readyForInteraction} type="submit" bsSize="large">Go!</Button>
+			<div className="medium-top-margin">
+				{ (this.state.readyForInteraction && !this.state.registrationFormShown)
+					? <a href="#" onClick={(event) => this.registrationFormRequested(event)}>I would like to register</a>
+					: <span>I would like to register</span>
+				}
+			</div>
+			{ this.state.registrationFormShown ? this.renderRegistrationFormModal() : '' }
 		</form>;
 	}
 	
@@ -475,7 +619,158 @@ class App extends Component {
 		</p>
 	}
 	
-	// --- ^^^ --- USER ID FORM ------------------------------------------------
+	registrationFormRequested(event) {
+		event.preventDefault();
+		this.setState({
+			registrationFormShown: true
+		});
+	}
+	
+	registrationFormModalHiding() {
+		if (this.state.registrationInProgress) {
+			alert('Registration in progress, please wait.');
+			return;
+		}
+		if (!this.state.readyForInteraction) {
+			alert('I am busy, please wait');
+			return;
+		}
+		this.setState({
+			registrationFormShown: false
+		});
+	}
+	
+	provisionalConsumerKeyChanged(event) {
+		event.preventDefault();
+		this.setState({ provisionalConsumerKey: event.target.value });
+	}
+	
+	provisionalConsumerSecretChanged(event) {
+		event.preventDefault();
+		this.setState({ provisionalConsumerSecret: event.target.value });
+	}
+	
+	provisionalAccessTokenChanged(event) {
+		event.preventDefault();
+		this.setState({ provisionalAccessToken: event.target.value });
+	}
+	
+	provisionalAccessTokenSecretChanged(event) {
+		event.preventDefault();
+		this.setState({ provisionalAccessTokenSecret: event.target.value });
+	}
+	
+	registrationFormSubmitted(event) {
+		event.preventDefault();
+		if (!this.state.readyForInteraction) {
+			alert('I am busy, please wait');
+			return;
+		}
+		
+		var userId = this.state.provisionalUserId;
+		var consumerKey = this.state.provisionalConsumerKey;
+		var consumerSecret = this.state.provisionalConsumerSecret;
+		var accessToken = this.state.provisionalAccessToken;
+		var accessTokenSecret = this.state.provisionalAccessTokenSecret;
+		
+		var userIdValid = userId.length > 0;
+		var consumerKeyValid = consumerKey.length > 0;
+		var consumerSecretValid = consumerSecret.length > 0;
+		var accessTokenValid = accessToken.length > 0;
+		var accessTokenSecretValid = accessToken.length > 0;
+		
+		this.setState({
+			userIdValidationState: userIdValid ? null : 'error',
+			consumerKeyValidationState: consumerKeyValid ? null : 'error',
+			consumerSecretValidationState: consumerSecretValid > 0 ? null : 'error',
+			accessTokenValidationState: accessTokenValid > 0 ? null : 'error',
+			accessTokenSecretValidationState: accessTokenSecretValid > 0 ? null : 'error'
+		});
+		
+		if (userIdValid && consumerKeyValid && consumerSecretValid && accessTokenValid && accessTokenSecretValid) {
+			this.setState({
+				readyForInteraction: false,
+				registrationInProgress: true
+			});
+			this.addUser(userId, (new Date()).getTime(), consumerKey, consumerSecret, accessToken, accessTokenSecret, function(success) {
+				this.setState({
+					userId: userId,
+					consumerKey: consumerKey,
+					consumerSecret: consumerSecret,
+					accessToken: accessToken,
+					accessTokenSecret: accessTokenSecret,
+					readyForInteraction: true,
+					registrationInProgress: false,
+					registrationFormShown: false
+				})
+			}, this);
+		}
+	}
+	
+	renderRegistrationFormModal() {
+		return <Modal show={true} animation={false} onHide={() => this.registrationFormModalHiding()}>
+			<ModalHeader closeButton={true}>
+				<ModalTitle>
+					Registration
+				</ModalTitle>
+			</ModalHeader>
+			<ModalBody>
+				{ this.state.registrationInProgress
+					? <div className="loader-block"><span className="sr-only">Loading...</span></div>
+					:	(<form onSubmit={(event) => this.registrationFormSubmitted(event)}>
+							<FormGroup controlId="userId" bsSize="large" validationState={this.state.userIdValidationState}>
+								<ControlLabel>Username</ControlLabel>
+								<FormControl
+									autoFocus
+									type="text"
+									value={this.state.provisionalUserId}
+									onChange={(event) => this.provisionalUserIdChanged(event)}
+								/>
+							</FormGroup>
+							<FormGroup controlId="consumerKey" bsSize="large" validationState={this.state.consumerKeyValidationState}>
+								<ControlLabel>Consumer Key</ControlLabel>
+								<FormControl
+									autoFocus
+									type="text"
+									value={this.state.provisionalConsumerKey}
+									onChange={(event) => this.provisionalConsumerKeyChanged(event)}
+								/>
+							</FormGroup>
+							<FormGroup controlId="consumerSecret" bsSize="large" validationState={this.state.consumerSecretValidationState}>
+								<ControlLabel>Consumer Secret</ControlLabel>
+								<FormControl
+									autoFocus
+									type="text"
+									value={this.state.provisionalConsumerSecret}
+									onChange={(event) => this.provisionalConsumerSecretChanged(event)}
+								/>
+							</FormGroup>
+							<FormGroup controlId="accessToken" bsSize="large" validationState={this.state.accessTokenValidationState}>
+								<ControlLabel>Access Token</ControlLabel>
+								<FormControl
+									autoFocus
+									type="text"
+									value={this.state.provisionalAccessToken}
+									onChange={(event) => this.provisionalAccessTokenChanged(event)}
+								/>
+							</FormGroup>
+							<FormGroup controlId="accessTokenSecret" bsSize="large" validationState={this.state.accessTokenSecretValidationState}>
+								<ControlLabel>Access Token Secret</ControlLabel>
+								<FormControl
+									autoFocus
+									type="text"
+									value={this.state.provisionalAccessTokenSecret}
+									onChange={(event) => this.provisionalAccessTokenSecretChanged(event)}
+								/>
+							</FormGroup>
+							<Button block disabled={!this.state.readyForInteraction} type="submit" bsSize="large">Go!</Button>
+						</form>)
+				}
+			</ModalBody>
+		</Modal>;
+	}
+	
+	// --- ^^^ --- USER ID FORM / REGISTRATION ---------------------------------
 	
 	
 	
@@ -528,7 +823,12 @@ class App extends Component {
 				totalCount: 0,
 				totalAverage: 0,
 				
-				autoupdatePaused: true
+				displayedTweets: [],
+				displayedTweetsAge: this.state.displayedTweetsMaxAge,
+				
+				autoupdatePaused: true,
+				
+				demoCount: 0
 			});
 			this.resetLineChart1();
 			this.addWord(this.state.userId, word, (new Date()).getTime(), function(success) {
@@ -643,7 +943,12 @@ class App extends Component {
 			totalCount: 0,
 			totalAverage: 0,
 			
-			autoupdatePaused: false
+			displayedTweets: [],
+			displayedTweetsAge: this.state.displayedTweetsMaxAge,
+			
+			autoupdatePaused: false,
+			
+			demoCount: 0
 		});
 	}
 	
@@ -698,12 +1003,19 @@ class App extends Component {
 	
 	runAutoupdate() {
 		this.setState({ autoupdateDone: false });
-		var fromTimestamp = this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - this.state.autoupdateInterval);
-		var toTimestamp = (new Date()).getTime();
+		var fromTimestamp = (this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - this.state.autoupdateInterval)) - config.tweetFetchLag;
+		// var fromTimestamp = (this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - 3 * 60 * 60 * 1000)) - config.tweetFetchLag;
+		var toTimestamp = (new Date()).getTime() - config.tweetFetchLag;
 		
 		this.getTweets(this.state.userId, this.state.word, fromTimestamp, toTimestamp, function(tweets) {
 			if (tweets != null) {
 				this.integrateTweets(tweets, fromTimestamp, toTimestamp);
+				if (this.state.displayedTweetsAge >= this.state.displayedTweetsMaxAge) {
+					this.updateDisplayedTweets(tweets);
+					this.setState({ displayedTweetsAge: 0 });
+				} else {
+					this.setState({ displayedTweetsAge: this.state.displayedTweetsAge + 1 });
+				}
 			}
 			this.setState({
 				autoupdateDone: true,
@@ -791,6 +1103,15 @@ class App extends Component {
 		}
 	}
 	
+	renderDisplayedTweets() {
+		return <ul className="displayed-tweets">
+			{
+				this.renderArray(this.state.displayedTweets, function(tweet, index) {
+					return <li key={index} className={ 'displayed-tweet age-' + this.state.displayedTweetsAge + ' sentiment-class-' + this.getSentimentClass(tweet) }>{tweet.text}</li>
+				}, this)
+			}
+		</ul>;
+	}
 	
 	// --- ^^^ --- DATA VISUALIZATION ------------------------------------------
 	
@@ -817,9 +1138,9 @@ class App extends Component {
 				</div>
 				<div className="col-xs-6 col-sm-8">
 					{this.state.userId == null
-							? ''
-							: this.renderUserStateForm()
-						}
+						? ''
+						: this.renderUserStateForm()
+					}
 				</div>
 			</div>
 			<div className="input-section-1 row">
@@ -895,7 +1216,11 @@ class App extends Component {
 								</div>
 							</div>
 							
-							
+							<div className="row">
+								<div className="col-xs-12">
+									{ this.renderDisplayedTweets() }
+								</div>
+							</div>
 							
 							
 							
@@ -1040,8 +1365,14 @@ class App extends Component {
 						</div>
 					</div>
 					
-					
-					
+					<div className="row medium-vertical-margin">
+						<div className="col-xs-12 col-sm-4">
+							Demo Load: {this.insertThousendSeparators(this.state.demoCount)}
+						</div>
+						<div className="col-xs-12 col-sm-8">
+							<Button disabled={!this.state.readyForInteraction} onClick={(event) => this.demoCountIncreaseRequested(event)} type="button" bsSize="small">Increase</Button>
+						</div>
+					</div>
 					
 				</div>
 			</div>
@@ -1060,6 +1391,7 @@ class App extends Component {
 			readyForInteraction: true
 		});
 		this.startAutoupdateLoop();
+		this.startDemoLoop();
 	}
 	
 	async componentDidUpdate() {
