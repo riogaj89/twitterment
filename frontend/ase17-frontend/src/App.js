@@ -273,7 +273,7 @@ class App extends Component {
 		var url = config.lambda.produceRandomTweets.url(
 			config.lambda.produceRandomTweets.params.number, number
 		);
-		console.log(url);
+		// console.log(url);
 		
 		fetch(url, {
 			method: 'get',
@@ -337,11 +337,13 @@ class App extends Component {
 	}
 	
 	runDemoTask(demoCount) {
-		this.setState({ demoTaskDone: false });
+		// this.setState({ demoTaskDone: false });
 		
-		this.produceRandomTweets(demoCount, function(success) {
-			this.setState({ demoTaskDone: true });
-		}, this, false);
+		//for (var i = 0; i < 10; ++i) {
+			this.produceRandomTweets(demoCount, function(success) {
+				// this.setState({ demoTaskDone: true });
+			}, this, false);
+		//}
 	}
 	
 	// --- ^^^ --- DEMO --------------------------------------------------------
@@ -385,6 +387,8 @@ class App extends Component {
 		var updatedStats = this.getUpdatedTweetStats(loadedTweets);
 		this.setState(updatedStats);
 		
+		// console.log('Setting loadEndTimestamp', toTimestamp, ', before', this.state.loadEndTimestamp);
+		
 		this.setState({
 			loadStartTimestamp: this.state.loadTimesKnown ? this.state.loadStartTimestamp : fromTimestamp,
 			loadEndTimestamp: toTimestamp,
@@ -393,6 +397,9 @@ class App extends Component {
 			tweetPoints: tweetPoints,
 			aggregationMillis: aggregationMillis
 		});
+		
+		// console.log('loadEndTimestamp', this.state.loadEndTimestamp);
+		
 	}
 	
 	updatePointForTweet(point, tweet) {
@@ -848,7 +855,8 @@ class App extends Component {
 				});
 				this.getWords(this.state.userId, function(words) {
 					this.setState({
-						suggestedWordsLoading: false
+						suggestedWordsLoading: false,
+						suggestedWords: words
 					});
 					this.finishWordSubmission(word, words.indexOf(word) === -1);
 				}, this);
@@ -1019,18 +1027,31 @@ class App extends Component {
 	
 	runAutoupdate() {
 		this.setState({ autoupdateDone: false });
-		var fromTimestamp = (this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - this.state.autoupdateInterval)) - config.tweetFetchLag;
+		
+		// console.log('Are the loading times known? ', this.state.loadTimesKnown);
+		
+		// var fromTimestamp = (this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - this.state.autoupdateInterval)) - config.tweetFetchLag;
+		var fromTimestamp = this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - this.state.autoupdateInterval - config.tweetFetchLag);
 		// var fromTimestamp = (this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - 3 * 60 * 60 * 1000)) - config.tweetFetchLag;
 		var toTimestamp = (new Date()).getTime() - config.tweetFetchLag;
 		
+		console.log('*** autoupdate: ', fromTimestamp, toTimestamp);
+		console.log('  without lag: ', fromTimestamp + config.tweetFetchLag, toTimestamp + config.tweetFetchLag);
+		
 		this.getTweets(this.state.userId, this.state.word, fromTimestamp, toTimestamp, function(tweets) {
 			if (tweets != null) {
-				this.integrateTweets(tweets, fromTimestamp, toTimestamp);
-				if (this.state.displayedTweetsAge >= this.state.displayedTweetsMaxAge) {
-					this.updateDisplayedTweets(tweets);
-					this.setState({ displayedTweetsAge: 0 });
+				if (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) {
+					this.setState({
+						totalCount: this.state.totalCount + tweets.length
+					});
 				} else {
-					this.setState({ displayedTweetsAge: this.state.displayedTweetsAge + 1 });
+					this.integrateTweets(tweets, fromTimestamp, toTimestamp);
+					if (this.state.displayedTweetsAge >= this.state.displayedTweetsMaxAge) {
+						this.updateDisplayedTweets(tweets);
+						this.setState({ displayedTweetsAge: 0 });
+					} else {
+						this.setState({ displayedTweetsAge: this.state.displayedTweetsAge + 1 });
+					}
 				}
 			}
 			this.setState({
@@ -1160,14 +1181,26 @@ class App extends Component {
 						?	(<div className="loader-block"><span className="sr-only">Loading...</span></div>)
 						:	''
 					}
+					
+						
+						
+						
 					<div className="row">
 						<div className="col-xs-12 col-sm-8">
 							<div className="x-scroll">
 								<svg
 									className="line-chart-1-svg"
 									ref="lineChart1Svg"
-									width={config.lineChart1.width + config.lineChart1.margin.left + config.lineChart1.margin.right}
-									height={config.lineChart1.height + config.lineChart1.margin.top + config.lineChart1.margin.bottom}
+									width={
+										(config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount)
+											?	0
+											:	(config.lineChart1.width + config.lineChart1.margin.left + config.lineChart1.margin.right)
+									}
+									height={
+										(config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount)
+											?	0
+											:	(config.lineChart1.height + config.lineChart1.margin.top + config.lineChart1.margin.bottom)
+									}
 								></svg>
 							</div>
 						</div>
@@ -1181,138 +1214,149 @@ class App extends Component {
 								</div>
 							</div>
 							
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Total Average
+							{ (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) ? ''
+								:	<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Total Average
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.state.totalAverage.toFixed(3)}
+										</div>
+									</div>
+							}
+							
+							{ (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) ? ''
+								:	<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Total Maximum
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.state.scoreMax}
+										</div>
+									</div>
+							}
+							
+							{ (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) ? ''
+								:	<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Total Minimum
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.state.scoreMin}
+										</div>
+									</div>
+							}
+							
+							{ (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) ? ''
+								:	<div className="row">
+										<div className="col-xs-12">
+											{ this.renderDisplayedTweets() }
+										</div>
+									</div>
+							}
+						</div>
+					</div>
+					{ (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) ? ''
+						:	<div className="row">
+								<div className="col-xs-12 col-sm-4">
+									<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Number of Negative
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.state.negativeCount}
+										</div>
+									</div>
+									
+									<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Percentage of Negative
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.formatPercentage(this.state.negativeCount, this.state.totalCount, '#')}
+										</div>
+									</div>
+									
+									<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Average Negative
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.state.negativeAverage.toFixed(3)}
+										</div>
+									</div>
 								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.state.totalAverage.toFixed(3)}
+								
+								<div className="col-xs-12 col-sm-4">
+									<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Number of Neutral
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.state.neutralCount}
+										</div>
+									</div>
+									
+									<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Percentage of Neutral
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.formatPercentage(this.state.neutralCount, this.state.totalCount, '#')}
+										</div>
+									</div>
+									
+									<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Average Neutral
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.state.neutralAverage.toFixed(3)}
+										</div>
+									</div>
+								</div>
+								<div className="col-xs-12 col-sm-4">
+									<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Number of Positive
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.state.positiveCount}
+										</div>
+									</div>
+									
+									<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Percentage of Positive
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.formatPercentage(this.state.positiveCount, this.state.totalCount, '#')}
+										</div>
+									</div>
+									
+									<div className="row">
+										<div className="col-xs-12 col-sm-8">
+											Average Positive
+										</div>
+										<div className="col-xs-12 col-sm-4 text-right">
+											{this.state.positiveAverage.toFixed(3)}
+										</div>
+									</div>
 								</div>
 							</div>
-							
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Total Maximum
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.state.scoreMax}
-								</div>
-							</div>
-							
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Total Minimum
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.state.scoreMin}
-								</div>
-							</div>
-							
-							<div className="row">
+					}
+									
+					{ (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) ? ''
+						:	<div className="row">
 								<div className="col-xs-12">
-									{ this.renderDisplayedTweets() }
+									<div className={'bar-chart-1 ' + (this.state.totalCount > 0 ? 'chart-active' : 'chart-inactive')}>
+										<div className="bar negative-bar" style={{width: this.formatPercentage(this.state.negativeCount, this.state.totalCount, '33.333%')}}>&nbsp;</div>
+										<div className="bar neutral-bar" style={{width: this.formatPercentage(this.state.neutralCount, this.state.totalCount, '33.333%')}}>&nbsp;</div>
+										<div className="bar positive-bar" style={{width: this.formatPercentage(this.state.positiveCount, this.state.totalCount, '33.333%')}}>&nbsp;</div>
+									</div>
 								</div>
 							</div>
-						</div>
-					</div>
-					
-					<div className="row">
-						<div className="col-xs-12 col-sm-4">
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Number of Negative
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.state.negativeCount}
-								</div>
-							</div>
-							
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Percentage of Negative
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.formatPercentage(this.state.negativeCount, this.state.totalCount, '#')}
-								</div>
-							</div>
-							
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Average Negative
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.state.negativeAverage.toFixed(3)}
-								</div>
-							</div>
-						</div>
-						
-						<div className="col-xs-12 col-sm-4">
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Number of Neutral
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.state.neutralCount}
-								</div>
-							</div>
-							
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Percentage of Neutral
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.formatPercentage(this.state.neutralCount, this.state.totalCount, '#')}
-								</div>
-							</div>
-							
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Average Neutral
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.state.neutralAverage.toFixed(3)}
-								</div>
-							</div>
-						</div>
-						<div className="col-xs-12 col-sm-4">
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Number of Positive
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.state.positiveCount}
-								</div>
-							</div>
-							
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Percentage of Positive
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.formatPercentage(this.state.positiveCount, this.state.totalCount, '#')}
-								</div>
-							</div>
-							
-							<div className="row">
-								<div className="col-xs-12 col-sm-8">
-									Average Positive
-								</div>
-								<div className="col-xs-12 col-sm-4 text-right">
-									{this.state.positiveAverage.toFixed(3)}
-								</div>
-							</div>
-						</div>
-					</div>
-					
-					<div className="row">
-						<div className="col-xs-12">
-							<div className={'bar-chart-1 ' + (this.state.totalCount > 0 ? 'chart-active' : 'chart-inactive')}>
-								<div className="bar negative-bar" style={{width: this.formatPercentage(this.state.negativeCount, this.state.totalCount, '33.333%')}}>&nbsp;</div>
-								<div className="bar neutral-bar" style={{width: this.formatPercentage(this.state.neutralCount, this.state.totalCount, '33.333%')}}>&nbsp;</div>
-								<div className="bar positive-bar" style={{width: this.formatPercentage(this.state.positiveCount, this.state.totalCount, '33.333%')}}>&nbsp;</div>
-							</div>
-						</div>
-					</div>
+					}
 					
 					<div className="row medium-vertical-margin">
 						<div className="col-xs-12 col-sm-4">

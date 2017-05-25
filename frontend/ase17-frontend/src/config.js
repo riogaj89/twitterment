@@ -27,6 +27,7 @@ export default {
 			}
 		},
 		addWord: {
+			// url: 'http://localhost/ase17/add.php',
 			url: 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/keyword',
 			params: {
 				userId: 'userId',
@@ -36,14 +37,16 @@ export default {
 			response: {}
 		},
 		getTweets: {
-			/*url: function(userIdName, userIdValue, wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
+			/*
+			url: function(userIdName, userIdValue, wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
 				return 'http://localhost/ase17/tweets.php'
 					+ '?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue)
 					+ '&' + encodeURIComponent(wordName) + '=' + encodeURIComponent(wordValue)
 					+ '&' + encodeURIComponent(fromTimestampName) + '=' + encodeURIComponent(fromTimestampValue)
 					+ '&' + encodeURIComponent(toTimestampName) + '=' + encodeURIComponent(toTimestampValue);
-			},*/
-			//
+			},
+			*/
+			
 			url: function(userIdName, userIdValue, wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
 				return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/tweets'
 					+ '?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue)
@@ -51,6 +54,7 @@ export default {
 					+ '&' + encodeURIComponent(fromTimestampName) + '=' + encodeURIComponent(fromTimestampValue)
 					+ '&' + encodeURIComponent(toTimestampName) + '=' + encodeURIComponent(toTimestampValue);
 			},
+			
 			params: {
 				userId: 'username',
 				word: 'keyword',
@@ -65,8 +69,8 @@ export default {
 			}
 		},
 		produceRandomTweets: {
-			url: function(numberName, numberValue) { return 'http://localhost/ase17/random_tweets.php?' + encodeURIComponent(numberName) + '=' + encodeURIComponent(numberValue); },
-			// url: function(numberName, numberValue) { return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/keyword?' + encodeURIComponent(numberName) + '=' + encodeURIComponent(numberValue); },
+			// url: function(numberName, numberValue) { return 'http://localhost/ase17/random_tweets.php?' + encodeURIComponent(numberName) + '=' + encodeURIComponent(numberValue); },
+			url: function(numberName, numberValue) { return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/random?' + encodeURIComponent(numberName) + '=' + encodeURIComponent(numberValue); },
 			params: {
 				number: 'number'
 			},
@@ -84,7 +88,7 @@ export default {
 		{ fromSeconds:  60 * 24 * 60 * 60, millis:     24 * 60 * 60 * 1000 }, // less than  1 year => 1 day
 		{ fromSeconds: 365 * 24 * 60 * 60, millis: 7 * 24 * 60 * 60 * 1000 }  // from       1 year => 1 week
 	],
-	tweetFetchLag: 7500,
+	tweetFetchLag: 0,
 	lineChart1: {
 		width: 600,
 		height: 270,
@@ -98,5 +102,6 @@ export default {
 			min: -10,
 			max: 10
 		}
-	}
+	},
+	simpleCount: -1
 };

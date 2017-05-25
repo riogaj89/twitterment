@@ -12,9 +12,10 @@ change the following properties:
 - `lambda.getWords.url`
 - `lambda.addWord.url`
 - `lambda.addWord.url`
+- `lambda.produceRandomTweets.url`
 
 After that you can test the front end locally by doing the following:
 
-1) `cd` to ".../ase17-frontend"
+1) `cd` to ".../ase17-frontend" (the directory containing this README.md file)
 2) run `npm install`
 3) run `npm start`
