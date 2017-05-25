@@ -14,6 +14,7 @@ import d3 from 'd3';
 import config from './config.js';
 import './App.css';
 
+
 class App extends Component {
 	
 	constructor(props) {
@@ -54,6 +55,14 @@ class App extends Component {
 			suggestedWordsVisible: false,
 			suggestedWords: null,
 			suggestedWordsLoading: false,
+			
+			historyWord: '',
+			
+			provisionalHistoryFromDate: '',
+			historyFromDate: '',
+			
+			provisionalHistoryToDate: '',
+			historyToDate: '',
 			
 			scrollToOutputArea: false,
 			outputAreaVisible: false,
@@ -989,6 +998,151 @@ class App extends Component {
 		});
 	}
 	
+	historyWordSelected(event) {
+		event.preventDefault();
+		this.setState({
+			historyWord: event.target.value
+		});
+	}
+	
+	historyFromDateChanged(event) {
+		event.preventDefault();
+		this.setState({
+			provisionalHistoryFromDate: event.target.value
+		});
+	}
+	
+	
+	
+	historyToDateChanged(event) {
+		event.preventDefault();
+		this.setState({
+			provisionalHistoryToDate: event.target.value
+		});
+	}
+	
+	historyFormSubmitted(event) {
+		event.preventDefault();
+		var word = this.state.historyWord;
+		var fromDate = this.state.provisionalHistoryFromDate;
+		var toDate = this.state.provisionalHistoryToDate;
+		
+		if (word.length === 0 || word === '---') {
+			alert('Please select a word');
+			return;
+		}
+		
+	
+		
+		
+		var fromMatches = (new RegExp('^(\\d{4})-(\\d{2})-(\\d{2})$', 'g')).exec(fromDate);
+		if (fromMatches === null) {
+			alert('Invalid date format: ' +fromDate);
+			return;
+		}
+		
+		var toMatches = (new RegExp('^(\\d{4})-(\\d{2})-(\\d{2})$', 'g')).exec(toDate);
+		if (toMatches === null) {
+			alert('Invalid date format: ' +toDate);
+			return;
+		}
+		
+		var fromDateObj = new Date(fromMatches[1], fromMatches[2] - 1, fromMatches[3], 0, 0, 1);
+		var toDateObj = new Date(toMatches[1], toMatches[2] - 1, toMatches[3], 23, 59, 59);
+		
+		var fromTimestamp = fromDateObj.getTime();
+		var toTimestamp = toDateObj.getTime();
+		
+		if (fromTimestamp > toTimestamp) {
+			alert('Your from date is after your to date.');
+			return;
+		}
+		
+		
+		
+		
+		this.resetLineChart1();
+		this.setState({
+			readyForInteraction: false,
+			
+			word: word,
+			provisionalWord: word,
+			wordValidationState: null,
+			
+			submittingWord: false,
+			
+			outputAreaVisible: false,
+			scrollToOutputArea: false,
+			
+			tweets: [],
+			tweetPoints: [],
+			loadStartTimestamp: -1,
+			loadEndTimestamp: -1,
+			loadTimesKnown: false,
+			aggregationMillis: 1000,
+			
+			scoreMax: 0,
+			scoreMin: 0,
+			scoreMinMaxKnown: false,
+			negativeCount: 0,
+			negativeAverage: 0,
+			neutralCount: 0,
+			neutralAverage: 0,
+			positiveCount: 0,
+			positiveAverage: 0,
+			totalCount: 0,
+			totalAverage: 0,
+			
+			displayedTweets: [],
+			displayedTweetsAge: 0,
+			
+			autoupdatePaused: true,
+			
+			demoCount: 0
+		});
+		
+		this.getTweets(this.state.userId, word, fromTimestamp, toTimestamp, function(tweets) {
+			if (tweets != null) {
+				if (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) {
+					this.setState({
+						totalCount: this.state.totalCount + tweets.length
+					});
+				} else {
+					this.integrateTweets(tweets, fromTimestamp, toTimestamp);
+					if (this.state.displayedTweetsAge >= this.state.displayedTweetsMaxAge) {
+						this.updateDisplayedTweets(tweets);
+						this.setState({ displayedTweetsAge: 0 });
+					} else {
+						this.setState({ displayedTweetsAge: this.state.displayedTweetsAge + 1 });
+					}
+					this.repaintLineChart1();
+				}
+				console.log(this.state.tweetPoints);
+			}
+			
+			this.setState({
+				readyForInteraction: true,
+				
+				suggestedWordsVisible: false,
+				
+				outputAreaVisible: true,
+				scrollToOutputArea: true,
+			});
+		}, this);
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+	}
+	
 	renderWordSuggestions() {
 		return <div>
 			<p className="text-center medium-vertical-margin">or</p>
@@ -1006,11 +1160,51 @@ class App extends Component {
 									?	(<div className="loader-block"><span className="sr-only">Loading...</span></div>)
 									:	(this.state.suggestedWords.length === 0
 										?	<p>There are no words yet for the user &quot;{this.state.userId}&quot;.</p>
-										:	(<ul>
-												{this.renderArray(this.state.suggestedWords, function(item, index) {
-													return <li key={index}><a href="#" onClick={(event) => this.selectedSuggestedWord(event, item.text)}>{item.text}</a></li>;
-												}, this)}
-											</ul>)
+										:	(<div>
+												<h2>Track Current Tweets</h2>
+												<ul>
+													{this.renderArray(this.state.suggestedWords, function(item, index) {
+														return <li key={index}><a href="#" onClick={(event) => this.selectedSuggestedWord(event, item.text)}>{item.text}</a></li>;
+													}, this)}
+												</ul>
+												<h2>Track Historic Tweets</h2>
+												<form onSubmit={(event) => this.historyFormSubmitted(event)}>
+													<FormGroup controlId="word" bsSize="large" validationState={this.state.userIdValidationState}>
+														<ControlLabel>Word</ControlLabel>
+														<FormControl componentClass="select" placeholder="select" onChange={(event) => this.historyWordSelected(event)}>
+															<option key="-1" value="---">--- Please Select ---</option>
+															{this.renderArray(this.state.suggestedWords, function(item, index) {
+																return <option key={index} value={item.text}>{item.text}</option>;
+															}, this)}
+														</FormControl>
+													</FormGroup>
+													<div className="row">
+														<div className="col-xs-12 col-sm-6">
+															<ControlLabel>From Date (YYYY-MM-DD)</ControlLabel>
+															<FormGroup controlId="fromDate" bsSize="large" validationState={this.state.userIdValidationState}>
+																<FormControl
+																	autoFocus
+																	type="text"
+																	value={this.state.provisionalHistoryFromDate}
+																	onChange={(event) => this.historyFromDateChanged(event)}
+																/>
+															</FormGroup>
+														</div>
+														<div className="col-xs-12 col-sm-6">
+															<ControlLabel>To Date (YYYY-MM-DD)</ControlLabel>
+															<FormGroup controlId="toDate" bsSize="large" validationState={this.state.userIdValidationState}>
+																<FormControl
+																	autoFocus
+																	type="text"
+																	value={this.state.provisionalHistoryToDate}
+																	onChange={(event) => this.historyToDateChanged(event)}
+																/>
+															</FormGroup>
+														</div>
+													</div>
+													<Button block disabled={!this.state.readyForInteraction} type="submit" bsSize="large">Go!</Button>
+												</form>
+											</div>)
 										)
 								}
 							</ModalBody>
@@ -1035,8 +1229,8 @@ class App extends Component {
 		// var fromTimestamp = (this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - 3 * 60 * 60 * 1000)) - config.tweetFetchLag;
 		var toTimestamp = (new Date()).getTime() - config.tweetFetchLag;
 		
-		console.log('*** autoupdate: ', fromTimestamp, toTimestamp);
-		console.log('  without lag: ', fromTimestamp + config.tweetFetchLag, toTimestamp + config.tweetFetchLag);
+		// console.log('*** autoupdate: ', fromTimestamp, toTimestamp);
+		// console.log('  without lag: ', fromTimestamp + config.tweetFetchLag, toTimestamp + config.tweetFetchLag);
 		
 		this.getTweets(this.state.userId, this.state.word, fromTimestamp, toTimestamp, function(tweets) {
 			if (tweets != null) {
