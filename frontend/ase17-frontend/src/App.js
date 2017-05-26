@@ -259,7 +259,6 @@ class App extends Component {
 			return response.json();
 		})
 		.then(function (loadedData) {
-			// console.log(url, fromTimestamp, toTimestamp, loadedData);
 			var tweets = [];
 			config.lambda.getTweets.response.items(loadedData, userId, word, fromTimestamp, toTimestamp, function(item) {
 				tweets.push({
@@ -278,11 +277,69 @@ class App extends Component {
 		});
 	}
 	
+	getAggregatedData(word, fromTimestamp, toTimestamp, listenerFunction, thisArg) {
+		var url = config.lambda.getAggregatedData.url(
+			config.lambda.getAggregatedData.params.word, word,
+			config.lambda.getAggregatedData.params.fromTimestamp, fromTimestamp,
+			config.lambda.getAggregatedData.params.toTimestamp, toTimestamp
+		);
+		
+		fetch(url, {
+			method: 'get',
+			headers: {
+				'Accept': 'application/json, text/plain, */*'
+			}
+		})
+		.then(function (response) {
+			return response.json();
+		})
+		.then(function (loadedData) {
+			var data = {};
+			
+			if (!config.lambda.getAggregatedData.response.isError(loadedData)) {
+				data.date = config.lambda.getAggregatedData.response.date(loadedData, word, fromTimestamp, toTimestamp);
+				data.max = config.lambda.getAggregatedData.response.max(loadedData, word, fromTimestamp, toTimestamp);
+				data.min = config.lambda.getAggregatedData.response.min(loadedData, word, fromTimestamp, toTimestamp);
+				data.positiveCount = config.lambda.getAggregatedData.response.positiveCount(loadedData, word, fromTimestamp, toTimestamp);
+				data.averagePositive = config.lambda.getAggregatedData.response.averagePositive(loadedData, word, fromTimestamp, toTimestamp);
+				data.totalPositive = config.lambda.getAggregatedData.response.totalPositive(loadedData, word, fromTimestamp, toTimestamp);
+				data.neutralCount = config.lambda.getAggregatedData.response.neutralCount(loadedData, word, fromTimestamp, toTimestamp);
+				data.averageNeutral = config.lambda.getAggregatedData.response.averageNeutral(loadedData, word, fromTimestamp, toTimestamp);
+				data.totalNeutral = config.lambda.getAggregatedData.response.totalNeutral(loadedData, word, fromTimestamp, toTimestamp);
+				data.negativeCount = config.lambda.getAggregatedData.response.negativeCount(loadedData, word, fromTimestamp, toTimestamp);
+				data.averageNegative = config.lambda.getAggregatedData.response.averageNegative(loadedData, word, fromTimestamp, toTimestamp);
+				data.totalNegative = config.lambda.getAggregatedData.response.totalNegative(loadedData, word, fromTimestamp, toTimestamp);
+				data.totalCount = config.lambda.getAggregatedData.response.totalCount(loadedData, word, fromTimestamp, toTimestamp);
+				data.averageTotal = config.lambda.getAggregatedData.response.averageTotal(loadedData, word, fromTimestamp, toTimestamp);
+				data.totalSentiment = config.lambda.getAggregatedData.response.totalSentiment(loadedData, word, fromTimestamp, toTimestamp);
+				
+				var displayedTweets = config.lambda.getAggregatedData.response.displayedTweets(loadedData, word, fromTimestamp, toTimestamp);
+				
+				data.displayedTweets = [];
+				displayedTweets.forEach(function(displayedTweet) {
+					if (displayedTweet !== null) {
+						data.displayedTweets.push({
+							text: config.lambda.getAggregatedData.response.displayedTweetText(displayedTweet, word, fromTimestamp, toTimestamp),
+							score: config.lambda.getAggregatedData.response.displayedTweetScore(displayedTweet, word, fromTimestamp, toTimestamp)
+						});
+					}
+				});
+				
+				listenerFunction.apply(thisArg, [data]);
+			} else {
+				listenerFunction.apply(thisArg, [null]);
+			}
+		}).catch(function(e) {
+			console.log('Loading aggregated data failed. Error:');
+			console.log(e);
+			listenerFunction.apply(thisArg, [null]);
+		});
+	}
+	
 	produceRandomTweets(number, listenerFunction, thisArg, waitForResponse) {
 		var url = config.lambda.produceRandomTweets.url(
 			config.lambda.produceRandomTweets.params.number, number
 		);
-		// console.log(url);
 		
 		fetch(url, {
 			method: 'get',
@@ -315,8 +372,8 @@ class App extends Component {
 	
 	getNextDemoCount(demoCount) {
 		if (demoCount === 0) return 1;
-		if (demoCount >= 10000) return demoCount;
-		return 10 * demoCount;
+		if (demoCount >= 1000) return demoCount;
+		return 2 * demoCount;
 	}
 	
 	demoCountIncreaseRequested(event) {
@@ -346,11 +403,11 @@ class App extends Component {
 	}
 	
 	runDemoTask(demoCount) {
-		// this.setState({ demoTaskDone: false });
+		this.setState({ demoTaskDone: false });
 		
 		//for (var i = 0; i < 10; ++i) {
 			this.produceRandomTweets(demoCount, function(success) {
-				// this.setState({ demoTaskDone: true });
+				this.setState({ demoTaskDone: true });
 			}, this, false);
 		//}
 	}
@@ -396,8 +453,6 @@ class App extends Component {
 		var updatedStats = this.getUpdatedTweetStats(loadedTweets);
 		this.setState(updatedStats);
 		
-		// console.log('Setting loadEndTimestamp', toTimestamp, ', before', this.state.loadEndTimestamp);
-		
 		this.setState({
 			loadStartTimestamp: this.state.loadTimesKnown ? this.state.loadStartTimestamp : fromTimestamp,
 			loadEndTimestamp: toTimestamp,
@@ -406,9 +461,6 @@ class App extends Component {
 			tweetPoints: tweetPoints,
 			aggregationMillis: aggregationMillis
 		});
-		
-		// console.log('loadEndTimestamp', this.state.loadEndTimestamp);
-		
 	}
 	
 	updatePointForTweet(point, tweet) {
@@ -797,7 +849,7 @@ class App extends Component {
 									onChange={(event) => this.provisionalAccessTokenSecretChanged(event)}
 								/>
 							</FormGroup>
-							<Button block disabled={!this.state.readyForInteraction} type="submit" bsSize="large">Go!</Button>
+							<Button block disabled={!this.state.readyForInteraction} type="submit" bsSize="large">Register</Button>
 						</form>)
 				}
 			</ModalBody>
@@ -857,17 +909,23 @@ class App extends Component {
 			});
 			
 			if (this.state.suggestedWords !== null) {
-				this.finishWordSubmission(word, this.state.suggestedWords.indexOf(word) === -1);
+				this.finishWordSubmission(
+					word, 
+					!this.suggestedWordsContainText(this.state.suggestedWords, word)
+				);
 			} else {
 				this.setState({
 					suggestedWordsLoading: true
 				});
 				this.getWords(this.state.userId, function(words) {
 					this.setState({
-						suggestedWordsLoading: false,
-						suggestedWords: words
+						suggestedWords: words,
+						suggestedWordsLoading: false
 					});
-					this.finishWordSubmission(word, words.indexOf(word) === -1);
+					this.finishWordSubmission(
+						word,
+						!this.suggestedWordsContainText(words, word)
+					);
 				}, this);
 			}
 		} else {
@@ -876,12 +934,21 @@ class App extends Component {
 	}
 	
 	finishWordSubmission(word, addWord) {
+		var addWordForDemo = false;
+		
+		if (!addWord) {
+			addWordForDemo = confirm('You are already tracking this word. You can use the "Select Word from List" button to look at data for existing streams. Do you want to start a new stream for testing/demo?');
+		}
+		
 		this.resetLineChart1();
-		if (addWord) {
+		if (addWord || addWordForDemo) {
 			this.addWord(this.state.userId, word, (new Date()).getTime(), function(success) {
 				var newSuggestedWords = this.state.suggestedWords.slice();
-				newSuggestedWords.push(word);
-				newSuggestedWords.sort(function(a, b) { return a.text.localeCompare(b.text); });
+				
+				if (!addWordForDemo) {
+					newSuggestedWords.push({ text: word });
+					newSuggestedWords.sort(function(a, b) { return a.text.localeCompare(b.text); });
+				}
 				
 				this.setState({
 					submittingWord: false,
@@ -953,6 +1020,14 @@ class App extends Component {
 		} else {
 			this.setState({ suggestedWordsVisible: false });
 		}
+	}
+	
+	suggestedWordsContainText(words, text) {
+		if (words === null) return false;
+		for (var i = 0; i < words.length; ++i) {
+			if (words[i].text === text) return true;
+		}
+		return false;
 	}
 	
 	selectedSuggestedWord(event, wordText) {
@@ -1032,9 +1107,6 @@ class App extends Component {
 			return;
 		}
 		
-	
-		
-		
 		var fromMatches = (new RegExp('^(\\d{4})-(\\d{2})-(\\d{2})$', 'g')).exec(fromDate);
 		if (fromMatches === null) {
 			alert('Invalid date format: ' +fromDate);
@@ -1053,13 +1125,10 @@ class App extends Component {
 		var fromTimestamp = fromDateObj.getTime();
 		var toTimestamp = toDateObj.getTime();
 		
-		if (fromTimestamp > toTimestamp) {
+		if (fromTimestamp >= toTimestamp) {
 			alert('Your from date is after your to date.');
 			return;
 		}
-		
-		
-		
 		
 		this.resetLineChart1();
 		this.setState({
@@ -1071,8 +1140,10 @@ class App extends Component {
 			
 			submittingWord: false,
 			
-			outputAreaVisible: false,
-			scrollToOutputArea: false,
+			suggestedWordsVisible: false,
+			
+			outputAreaVisible: true,
+			scrollToOutputArea: true,
 			
 			tweets: [],
 			tweetPoints: [],
@@ -1101,46 +1172,62 @@ class App extends Component {
 			demoCount: 0
 		});
 		
-		this.getTweets(this.state.userId, word, fromTimestamp, toTimestamp, function(tweets) {
-			if (tweets != null) {
-				if (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) {
-					this.setState({
-						totalCount: this.state.totalCount + tweets.length
-					});
-				} else {
-					this.integrateTweets(tweets, fromTimestamp, toTimestamp);
-					if (this.state.displayedTweetsAge >= this.state.displayedTweetsMaxAge) {
-						this.updateDisplayedTweets(tweets);
-						this.setState({ displayedTweetsAge: 0 });
-					} else {
-						this.setState({ displayedTweetsAge: this.state.displayedTweetsAge + 1 });
-					}
-					this.repaintLineChart1();
-				}
-				console.log(this.state.tweetPoints);
+		var intervalMillis = (toTimestamp - fromTimestamp) / config.historyIntervalCount;
+		this.loadHistoryPoint(word, fromTimestamp, toTimestamp, intervalMillis);
+	}
+	
+	loadHistoryPoint(word, fromTimestamp, toTimestamp, intervalMillis) {
+		this.getAggregatedData(word, fromTimestamp, fromTimestamp + intervalMillis, function(data) {
+			if (data != null) {
+				var tweetPoint = {
+					date: data.date,
+					values: [data.totalNegative, data.totalNeutral, data.totalPositive, data.totalSentiment],
+					counts: [data.negativeCount, data.neutralCount, data.positiveCount, data.totalCount]
+				};
+				
+				var tweetPoints = this.state.tweetPoints.slice();
+				tweetPoints.push(tweetPoint);
+				
+				var scoreMax = (!this.state.scoreMinMaxKnown) ? data.max : (Math.max(this.state.scoreMax, data.max));
+				var scoreMin = (!this.state.scoreMinMaxKnown) ? data.min : (Math.min(this.state.scoreMin, data.min));
+				
+				var negativeCount = this.state.negativeCount + data.negativeCount;
+				var negativeAverage = this.combineAverages(this.state.negativeAverage, this.state.negativeCount, data.averageNegative, data.negativeCount);
+				
+				var neutralCount = this.state.neutralCount + data.neutralCount;
+				var neutralAverage = this.combineAverages(this.state.neutralAverage, this.state.neutralCount, data.averageNeutral, data.neutralCount);
+				var positiveCount = this.state.positiveCount + data.positiveCount;
+				var positiveAverage = this.combineAverages(this.state.positiveAverage, this.state.positiveCount, data.averagePositive, data.positiveCount);
+				var totalCount = this.state.totalCount + data.totalCount;
+				var totalAverage = this.combineAverages(this.state.totalAverage, this.state.totalCount, data.averageTotal, data.totalCount);
+				
+				this.setState({
+					tweetPoints: tweetPoints,
+					
+					scoreMinMaxKnown: true,
+					scoreMax: scoreMax,
+					scoreMin: scoreMin,
+					
+					negativeCount: negativeCount,
+					negativeAverage: negativeAverage,
+					neutralCount: neutralCount,
+					neutralAverage: neutralAverage,
+					positiveCount: positiveCount,
+					positiveAverage: positiveAverage,
+					totalCount: totalCount,
+					totalAverage: totalAverage
+				});
+				this.repaintLineChart1();
 			}
 			
-			this.setState({
-				readyForInteraction: true,
-				
-				suggestedWordsVisible: false,
-				
-				outputAreaVisible: true,
-				scrollToOutputArea: true,
-			});
+			if (fromTimestamp + intervalMillis >= toTimestamp) {
+				this.setState({
+					readyForInteraction: true
+				});
+			} else {
+				this.loadHistoryPoint(word, fromTimestamp + intervalMillis, toTimestamp, intervalMillis);
+			}
 		}, this);
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
 	}
 	
 	renderWordSuggestions() {
@@ -1222,37 +1309,65 @@ class App extends Component {
 	runAutoupdate() {
 		this.setState({ autoupdateDone: false });
 		
-		// console.log('Are the loading times known? ', this.state.loadTimesKnown);
-		
-		// var fromTimestamp = (this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - this.state.autoupdateInterval)) - config.tweetFetchLag;
 		var fromTimestamp = this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - this.state.autoupdateInterval - config.tweetFetchLag);
-		// var fromTimestamp = (this.state.loadTimesKnown ? this.state.loadEndTimestamp : ((new Date()).getTime() - 3 * 60 * 60 * 1000)) - config.tweetFetchLag;
 		var toTimestamp = (new Date()).getTime() - config.tweetFetchLag;
 		
-		// console.log('*** autoupdate: ', fromTimestamp, toTimestamp);
-		// console.log('  without lag: ', fromTimestamp + config.tweetFetchLag, toTimestamp + config.tweetFetchLag);
-		
-		this.getTweets(this.state.userId, this.state.word, fromTimestamp, toTimestamp, function(tweets) {
-			if (tweets != null) {
-				if (config.simpleCount >= 0 && this.state.totalCount >= config.simpleCount) {
-					this.setState({
-						totalCount: this.state.totalCount + tweets.length
-					});
-				} else {
-					this.integrateTweets(tweets, fromTimestamp, toTimestamp);
-					if (this.state.displayedTweetsAge >= this.state.displayedTweetsMaxAge) {
-						this.updateDisplayedTweets(tweets);
-						this.setState({ displayedTweetsAge: 0 });
-					} else {
-						this.setState({ displayedTweetsAge: this.state.displayedTweetsAge + 1 });
-					}
-				}
+		this.getAggregatedData(this.state.word, fromTimestamp, toTimestamp, function(data) {
+			if (data != null) {
+				var tweetPoint = {
+					date: data.date,
+					values: [data.totalNegative, data.totalNeutral, data.totalPositive, data.totalSentiment],
+					counts: [data.negativeCount, data.neutralCount, data.positiveCount, data.totalCount]
+				};
+				
+				var tweetPoints = this.state.tweetPoints.slice();
+				tweetPoints.push(tweetPoint);
+				
+				var scoreMax = (!this.state.scoreMinMaxKnown) ? data.max : (Math.max(this.state.scoreMax, data.max));
+				var scoreMin = (!this.state.scoreMinMaxKnown) ? data.min : (Math.min(this.state.scoreMin, data.min));
+				
+				var negativeCount = this.state.negativeCount + data.negativeCount;
+				var negativeAverage = this.combineAverages(this.state.negativeAverage, this.state.negativeCount, data.averageNegative, data.negativeCount);
+				
+				var neutralCount = this.state.neutralCount + data.neutralCount;
+				var neutralAverage = this.combineAverages(this.state.neutralAverage, this.state.neutralCount, data.averageNeutral, data.neutralCount);
+				var positiveCount = this.state.positiveCount + data.positiveCount;
+				var positiveAverage = this.combineAverages(this.state.positiveAverage, this.state.positiveCount, data.averagePositive, data.positiveCount);
+				var totalCount = this.state.totalCount + data.totalCount;
+				var totalAverage = this.combineAverages(this.state.totalAverage, this.state.totalCount, data.averageTotal, data.totalCount);
+				
+				var displayedTweets = data.displayedTweets;
+				
+				this.setState({
+					autoupdateDone: true,
+					
+					tweetPoints: tweetPoints,
+					displayedTweets: displayedTweets,
+					
+					scoreMinMaxKnown: true,
+					scoreMax: scoreMax,
+					scoreMin: scoreMin,
+					
+					negativeCount: negativeCount,
+					negativeAverage: negativeAverage,
+					neutralCount: neutralCount,
+					neutralAverage: neutralAverage,
+					positiveCount: positiveCount,
+					positiveAverage: positiveAverage,
+					totalCount: totalCount,
+					totalAverage: totalAverage,
+					
+					loadStartTimestamp: this.state.loadTimesKnown ? this.state.loadStartTimestamp : fromTimestamp,
+					loadEndTimestamp: toTimestamp,
+					loadTimesKnown: true
+				});
+				
+				this.repaintLineChart1();
+			} else {
+				this.setState({
+					autoupdateDone: true
+				});
 			}
-			this.setState({
-				autoupdateDone: true,
-				remainingAutoupdates: this.state.remainingAutoupdates > 0 ? this.state.remainingAutoupdates - 1 : this.state.remainingAutoupdates
-			});
-			this.repaintLineChart1();
 		}, this);
 	}
 	

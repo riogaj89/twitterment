@@ -1,8 +1,8 @@
 export default {
 	lambda:  {
 		addUser: {
-			// url: 'http://localhost/ase17/user.php',
 			url: 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/user',
+			//   ^--------- PLEASE CHANGE
 			params: {
 				userId: 'userId',
 				createdAt: 'createdAt',
@@ -14,21 +14,22 @@ export default {
 			response: {}
 		},
 		getWords: {
-			// url: function(userIdName, userIdValue) { return 'http://localhost/ase17/words.php?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue); },
-			url: function(userIdName, userIdValue) { return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/keyword?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue); },
+			url: function(userIdName, userIdValue) {
+				return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/keyword'
+					//   ^----- PLEASE CHANGE
+					+ '?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue);
+				},
 			params: {
 				userId: 'userId'
 			},
 			response: {
-				// items: function(data, userId, processor, thisArg) { data.forEach(processor, thisArg); },
-				// text: function(item, userId) { return item; }
 				items: function(data, userId, processor, thisArg) { data.keywords.forEach(processor, thisArg); },
 				text: function(item, userId) { return item.keyword; }
 			}
 		},
 		addWord: {
-			// url: 'http://localhost/ase17/add.php',
 			url: 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/keyword',
+			//   ^--------- PLEASE CHANGE
 			params: {
 				userId: 'userId',
 				word: 'keyword',
@@ -36,46 +37,74 @@ export default {
 			},
 			response: {}
 		},
-		getTweets: {
-			/*
-			url: function(userIdName, userIdValue, wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
-				return 'http://localhost/ase17/tweets.php'
-					+ '?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue)
-					+ '&' + encodeURIComponent(wordName) + '=' + encodeURIComponent(wordValue)
-					+ '&' + encodeURIComponent(fromTimestampName) + '=' + encodeURIComponent(fromTimestampValue)
-					+ '&' + encodeURIComponent(toTimestampName) + '=' + encodeURIComponent(toTimestampValue);
-			},
-			*/
-			
-			url: function(userIdName, userIdValue, wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
+		getAggregatedData: {
+			url: function(wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
 				return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/tweets'
-					+ '?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue)
-					+ '&' + encodeURIComponent(wordName) + '=' + encodeURIComponent(wordValue)
+					//   ^----- PLEASE CHANGE
+					+ '?' + encodeURIComponent(wordName) + '=' + encodeURIComponent(wordValue)
 					+ '&' + encodeURIComponent(fromTimestampName) + '=' + encodeURIComponent(fromTimestampValue)
 					+ '&' + encodeURIComponent(toTimestampName) + '=' + encodeURIComponent(toTimestampValue);
 			},
-			
 			params: {
-				userId: 'username',
 				word: 'keyword',
 				fromTimestamp: 'fromTimestamp',
 				toTimestamp: 'toTimestamp'
 			},
 			response: {
-				items: function(data, userId, word, fromTimestamp, toTimestamp, processor, thisArg) { data.tweets.forEach(processor, thisArg); },
-				text: function(item, userId, word, fromTimestamp, toTimestamp) { return item.text; },
-				score: function(item, userId, word, fromTimestamp, toTimestamp) { return item.sentiment_score; },
-				createdAt: function(item, userId, word, fromTimestamp, toTimestamp) { return item.createdAt; },
+				date: function(data, word, fromTimestamp, toTimestamp) { return data.timestamp; },
+				max: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.maxValue; },
+				min: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.minValue; },
+				positiveCount: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.countPositives; },
+				averagePositive: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.averagePositives; },
+				totalPositive: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.sumPositives; },
+				neutralCount: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.countNeutral; },
+				averageNeutral: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.averageNeutral; },
+				totalNeutral: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.sumNeutral; },
+				negativeCount: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.countNegatives; },
+				averageNegative: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.averageNegatives; },
+				totalNegative: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.sumNegatives; },
+				totalCount: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.totalCount; },
+				averageTotal: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.totalAverage; },
+				totalSentiment: function(data, word, fromTimestamp, toTimestamp) { return data.statistics.totalSum; },
+				displayedTweets: function(data, word, fromTimestamp, toTimestamp) { return data.tweets; },
+				displayedTweetText: function(displayedTweet, word, fromTimestamp, toTimestamp) { return displayedTweet.text; },
+				displayedTweetScore: function(displayedTweet, word, fromTimestamp, toTimestamp) { return displayedTweet.sentiment_score; },
+				isError: function(data, word, fromTimestamp, toTimestamp) { return (typeof data === 'undefined') || data === null || (typeof data['statistics'] === 'undefined') || (typeof data['errorMessage'] !== 'undefined'); }
 			}
 		},
 		produceRandomTweets: {
-			// url: function(numberName, numberValue) { return 'http://localhost/ase17/random_tweets.php?' + encodeURIComponent(numberName) + '=' + encodeURIComponent(numberValue); },
-			url: function(numberName, numberValue) { return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/random?' + encodeURIComponent(numberName) + '=' + encodeURIComponent(numberValue); },
+			url: function(numberName, numberValue) { 
+				return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/random'
+					//   ^----- PLEASE CHANGE
+					+ '?' + encodeURIComponent(numberName) + '=' + encodeURIComponent(numberValue);
+			},
 			params: {
 				number: 'number'
 			},
 			response: {}
-		}
+		},
+//		getTweets: {
+//			url: function(userIdName, userIdValue, wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
+//				return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/tweets'
+//					+ '?' + encodeURIComponent(userIdName) + '=' + encodeURIComponent(userIdValue)
+//					+ '&' + encodeURIComponent(wordName) + '=' + encodeURIComponent(wordValue)
+//					+ '&' + encodeURIComponent(fromTimestampName) + '=' + encodeURIComponent(fromTimestampValue)
+//					+ '&' + encodeURIComponent(toTimestampName) + '=' + encodeURIComponent(toTimestampValue);
+//			},
+//			
+//			params: {
+//				userId: 'username',
+//				word: 'keyword',
+//				fromTimestamp: 'fromTimestamp',
+//				toTimestamp: 'toTimestamp'
+//			},
+//			response: {
+//				items: function(data, userId, word, fromTimestamp, toTimestamp, processor, thisArg) { data.tweets.forEach(processor, thisArg); },
+//				text: function(item, userId, word, fromTimestamp, toTimestamp) { return item.text; },
+//				score: function(item, userId, word, fromTimestamp, toTimestamp) { return item.sentiment_score; },
+//				createdAt: function(item, userId, word, fromTimestamp, toTimestamp) { return item.createdAt; },
+//			}
+//		},
 	},
 	sentiment: {
 		neutralMin: -1,
@@ -88,6 +117,7 @@ export default {
 		{ fromSeconds:  60 * 24 * 60 * 60, millis:     24 * 60 * 60 * 1000 }, // less than  1 year => 1 day
 		{ fromSeconds: 365 * 24 * 60 * 60, millis: 7 * 24 * 60 * 60 * 1000 }  // from       1 year => 1 week
 	],
+	historyIntervalCount: 30,
 	tweetFetchLag: 0,
 	lineChart1: {
 		width: 600,
