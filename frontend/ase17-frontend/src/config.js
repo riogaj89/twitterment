@@ -83,6 +83,9 @@ export default {
 			},
 			response: {}
 		},
+
+// Notice: Tweet data aggregation is now done in the backend (Lambda)
+
 //		getTweets: {
 //			url: function(userIdName, userIdValue, wordName, wordValue, fromTimestampName, fromTimestampValue, toTimestampName, toTimestampValue) {
 //				return 'https://pzosuqcu5j.execute-api.us-east-1.amazonaws.com/prod/tweets'
@@ -107,16 +110,19 @@ export default {
 //		},
 	},
 	sentiment: {
-		neutralMin: -1,
-		neutralMax: 1
+		neutralMin: 0,
+		neutralMax: 0
 	},
-	aggregation: [
-		{ fromSeconds:                  0, millis:                    1000 }, // less than  1 hour => ...
-		{ fromSeconds:            60 * 60, millis:               60 * 1000 }, // less than  1 day  => 1 minute 
-		{ fromSeconds:       24 * 60 * 60, millis:          60 * 60 * 1000 }, // less than 60 days => 1 hour
-		{ fromSeconds:  60 * 24 * 60 * 60, millis:     24 * 60 * 60 * 1000 }, // less than  1 year => 1 day
-		{ fromSeconds: 365 * 24 * 60 * 60, millis: 7 * 24 * 60 * 60 * 1000 }  // from       1 year => 1 week
-	],
+	
+// Notice: Tweet data aggregation is now done in the backend (Lambda)
+
+//	aggregation: [
+//		{ fromSeconds:                  0, millis:                    1000 }, // less than  1 hour => ...
+//		{ fromSeconds:            60 * 60, millis:               60 * 1000 }, // less than  1 day  => 1 minute 
+//		{ fromSeconds:       24 * 60 * 60, millis:          60 * 60 * 1000 }, // less than 60 days => 1 hour
+//		{ fromSeconds:  60 * 24 * 60 * 60, millis:     24 * 60 * 60 * 1000 }, // less than  1 year => 1 day
+//		{ fromSeconds: 365 * 24 * 60 * 60, millis: 7 * 24 * 60 * 60 * 1000 }  // from       1 year => 1 week
+//	],
 	historyIntervalCount: 30,
 	tweetFetchLag: 0,
 	lineChart1: {

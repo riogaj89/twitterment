@@ -20,7 +20,7 @@ change the following properties (you can search for "PLEASE CHANGE"):
   ("https://.../keyword").
 - `lambda.getAggregatedData.url`: This is the URL of the "GET tweets" request
   ("https://.../tweets").
-- `lambda.produceRandomTweets.url`: This is the URL of the "POST random"
+- `lambda.produceRandomTweets.url`: This is the URL of the "GET random"
   request ("https://.../tweets").
 
 After that you can test the front end locally by doing the following:

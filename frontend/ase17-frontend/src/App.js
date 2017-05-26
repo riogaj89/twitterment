@@ -14,7 +14,6 @@ import d3 from 'd3';
 import config from './config.js';
 import './App.css';
 
-
 class App extends Component {
 	
 	constructor(props) {
@@ -240,42 +239,44 @@ class App extends Component {
 		});
 		listenerFunction.apply(thisArg, [true]);
 	}
+
+// Notice: Tweet data aggregation is now done in the backend (Lambda)
 	
-	getTweets(userId, word, fromTimestamp, toTimestamp, listenerFunction, thisArg) {
-		var url = config.lambda.getTweets.url(
-			config.lambda.getTweets.params.userId, userId,
-			config.lambda.getTweets.params.word, word,
-			config.lambda.getTweets.params.fromTimestamp, fromTimestamp,
-			config.lambda.getTweets.params.toTimestamp, toTimestamp
-		);
-		
-		fetch(url, {
-			method: 'get',
-			headers: {
-				'Accept': 'application/json, text/plain, */*'
-			}
-		})
-		.then(function (response) {
-			return response.json();
-		})
-		.then(function (loadedData) {
-			var tweets = [];
-			config.lambda.getTweets.response.items(loadedData, userId, word, fromTimestamp, toTimestamp, function(item) {
-				tweets.push({
-					text: config.lambda.getTweets.response.text(item),
-					score: config.lambda.getTweets.response.score(item),
-					createdAt: config.lambda.getTweets.response.createdAt(item)
-				});
-			}, thisArg);
-			tweets.sort(function(a, b) { return a.createdAt - b.createdAt }); // xxa xxb
-			
-			listenerFunction.apply(thisArg, [tweets]);
-		}).catch(function(e) {
-			console.log('Loading tweets failed. Error:');
-			console.log(e);
-			listenerFunction.apply(thisArg, [null]);
-		});
-	}
+//	getTweets(userId, word, fromTimestamp, toTimestamp, listenerFunction, thisArg) {
+//		var url = config.lambda.getTweets.url(
+//			config.lambda.getTweets.params.userId, userId,
+//			config.lambda.getTweets.params.word, word,
+//			config.lambda.getTweets.params.fromTimestamp, fromTimestamp,
+//			config.lambda.getTweets.params.toTimestamp, toTimestamp
+//		);
+//		
+//		fetch(url, {
+//			method: 'get',
+//			headers: {
+//				'Accept': 'application/json, text/plain, */*'
+//			}
+//		})
+//		.then(function (response) {
+//			return response.json();
+//		})
+//		.then(function (loadedData) {
+//			var tweets = [];
+//			config.lambda.getTweets.response.items(loadedData, userId, word, fromTimestamp, toTimestamp, function(item) {
+//				tweets.push({
+//					text: config.lambda.getTweets.response.text(item),
+//					score: config.lambda.getTweets.response.score(item),
+//					createdAt: config.lambda.getTweets.response.createdAt(item)
+//				});
+//			}, thisArg);
+//			tweets.sort(function(a, b) { return a.createdAt - b.createdAt }); // xxa xxb
+//			
+//			listenerFunction.apply(thisArg, [tweets]);
+//		}).catch(function(e) {
+//			console.log('Loading tweets failed. Error:');
+//			console.log(e);
+//			listenerFunction.apply(thisArg, [null]);
+//		});
+//	}
 	
 	getAggregatedData(word, fromTimestamp, toTimestamp, listenerFunction, thisArg) {
 		var url = config.lambda.getAggregatedData.url(
@@ -405,117 +406,117 @@ class App extends Component {
 	runDemoTask(demoCount) {
 		this.setState({ demoTaskDone: false });
 		
-		//for (var i = 0; i < 10; ++i) {
-			this.produceRandomTweets(demoCount, function(success) {
-				this.setState({ demoTaskDone: true });
-			}, this, false);
-		//}
+		this.produceRandomTweets(demoCount, function(success) {
+			this.setState({ demoTaskDone: true });
+		}, this, false);
 	}
 	
 	// --- ^^^ --- DEMO --------------------------------------------------------
 	
 	// --- vvv --- TWEET PROCESSING --------------------------------------------
 	
-	integrateTweets(loadedTweets, fromTimestamp, toTimestamp) {
-		var aggregationMillis = this.getAggregationMillis(this.state.loadTimesKnown ? this.state.loadStartTimestamp : fromTimestamp, toTimestamp);
-		
-		var tweetPoints = null;
-		if (aggregationMillis !== this.state.aggregationMillis && this.state.loadTimesKnown) {
-			tweetPoints = this.tweetsToPoints(this.state.tweets, aggregationMillis, this.state.loadStartTimestamp, this.state.loadEndTimestamp);
-		} else {
-			tweetPoints = this.state.tweetPoints.slice();
-		}
-		
-		var loadedTweetPoints = this.tweetsToPoints(loadedTweets, aggregationMillis, fromTimestamp, toTimestamp);
-		
-		var loadedStartIndex = 1;
-		if (tweetPoints.length > 0) {
-			loadedStartIndex = Math.floor((loadedTweetPoints[0].date.getTime() - tweetPoints[0].date.getTime()) / aggregationMillis);
-		}
-		
-		var overlappingCount = Math.min(loadedTweetPoints.length,  Math.max(0, tweetPoints.length - loadedStartIndex));
-		
-		for (var i = 0; i < overlappingCount; ++i) {
-			this.combineTweetPoints(tweetPoints[loadedStartIndex + i], loadedTweetPoints[i]);
-		}
-		
-		for (i = overlappingCount; i < loadedTweetPoints.length; ++i) {
-			tweetPoints.push(loadedTweetPoints[i]);
-		}
-		
-		// xxa
-		var allTweets = this.state.tweets.slice();
-		loadedTweets.forEach(function(tweet) {
-			allTweets.push(tweet);
-		}, this);
-		// xxb
-		
-		var updatedStats = this.getUpdatedTweetStats(loadedTweets);
-		this.setState(updatedStats);
-		
-		this.setState({
-			loadStartTimestamp: this.state.loadTimesKnown ? this.state.loadStartTimestamp : fromTimestamp,
-			loadEndTimestamp: toTimestamp,
-			loadTimesKnown: true,
-			tweets: allTweets, // xxa xxb
-			tweetPoints: tweetPoints,
-			aggregationMillis: aggregationMillis
-		});
-	}
-	
-	updatePointForTweet(point, tweet) {
-		var sentimentClass = this.getSentimentClass(tweet);
-		point.values[sentimentClass] += tweet.score;
-		++point.counts[sentimentClass];
-		point.values[3] += tweet.score;
-		++point.counts[3];
-	}
-	
-	combineTweetPoints(basePoint, addedPoint) {
-		if (!basePoint) return;
-		for (var i = 0; i < basePoint.values.length; ++i) {
-			basePoint.values[i] += addedPoint.values[i];
-		}
-		for (i = 0; i < basePoint.counts.length; ++i) {
-			basePoint.counts[i] += addedPoint.counts[i];
-		}
-	}
-	
-	tweetsToPoints(tweets, aggregationMillis, fromTimestamp, toTimestamp) {
-		var firstTimestamp = fromTimestamp - (fromTimestamp % aggregationMillis);
-		var lastTimestamp = toTimestamp - (toTimestamp % aggregationMillis);
-		var pointCount = (lastTimestamp - firstTimestamp) / aggregationMillis + 1;
-		
-		var points = [];
-		for (var i = 0; i < pointCount; ++i) {
-			points.push({
-				date: new Date(firstTimestamp + i * aggregationMillis),
-				values: [0, 0, 0, 0],
-				counts: [0, 0, 0, 0]
-			});
-		}
-		
-		tweets.forEach(function(tweet) {
-			var pointIndex = Math.floor((tweet.createdAt - firstTimestamp) / aggregationMillis);
-			this.updatePointForTweet(points[pointIndex], tweet);
-		}, this);
-		
-		return points;
-	}
-	
-	getAggregationMillis(loadFromTimestamp, loadToTimestamp) {
-		var diffMillis = loadToTimestamp - loadFromTimestamp;
-		var aggregationMillis = 1;
-		for (var i = 0; i < config.aggregation.length; ++i) {
-			var item = config.aggregation[i];
-			if (item.fromSeconds * 1000 <= diffMillis) {
-				aggregationMillis = item.millis;
-			} else {
-				break;
-			}
-		}
-		return aggregationMillis;
-	}
+// Notice: Tweet data aggregation is now done in the backend (Lambda)
+
+//	integrateTweets(loadedTweets, fromTimestamp, toTimestamp) {
+//		var aggregationMillis = this.getAggregationMillis(this.state.loadTimesKnown ? this.state.loadStartTimestamp : fromTimestamp, toTimestamp);
+//		
+//		var tweetPoints = null;
+//		if (aggregationMillis !== this.state.aggregationMillis && this.state.loadTimesKnown) {
+//			tweetPoints = this.tweetsToPoints(this.state.tweets, aggregationMillis, this.state.loadStartTimestamp, this.state.loadEndTimestamp);
+//		} else {
+//			tweetPoints = this.state.tweetPoints.slice();
+//		}
+//		
+//		var loadedTweetPoints = this.tweetsToPoints(loadedTweets, aggregationMillis, fromTimestamp, toTimestamp);
+//		
+//		var loadedStartIndex = 1;
+//		if (tweetPoints.length > 0) {
+//			loadedStartIndex = Math.floor((loadedTweetPoints[0].date.getTime() - tweetPoints[0].date.getTime()) / aggregationMillis);
+//		}
+//		
+//		var overlappingCount = Math.min(loadedTweetPoints.length,  Math.max(0, tweetPoints.length - loadedStartIndex));
+//		
+//		for (var i = 0; i < overlappingCount; ++i) {
+//			this.combineTweetPoints(tweetPoints[loadedStartIndex + i], loadedTweetPoints[i]);
+//		}
+//		
+//		for (i = overlappingCount; i < loadedTweetPoints.length; ++i) {
+//			tweetPoints.push(loadedTweetPoints[i]);
+//		}
+//		
+//		// xxa
+//		var allTweets = this.state.tweets.slice();
+//		loadedTweets.forEach(function(tweet) {
+//			allTweets.push(tweet);
+//		}, this);
+//		// xxb
+//		
+//		var updatedStats = this.getUpdatedTweetStats(loadedTweets);
+//		this.setState(updatedStats);
+//		
+//		this.setState({
+//			loadStartTimestamp: this.state.loadTimesKnown ? this.state.loadStartTimestamp : fromTimestamp,
+//			loadEndTimestamp: toTimestamp,
+//			loadTimesKnown: true,
+//			tweets: allTweets, // xxa xxb
+//			tweetPoints: tweetPoints,
+//			aggregationMillis: aggregationMillis
+//		});
+//	}
+//	
+//	updatePointForTweet(point, tweet) {
+//		var sentimentClass = this.getSentimentClass(tweet);
+//		point.values[sentimentClass] += tweet.score;
+//		++point.counts[sentimentClass];
+//		point.values[3] += tweet.score;
+//		++point.counts[3];
+//	}
+//	
+//	combineTweetPoints(basePoint, addedPoint) {
+//		if (!basePoint) return;
+//		for (var i = 0; i < basePoint.values.length; ++i) {
+//			basePoint.values[i] += addedPoint.values[i];
+//		}
+//		for (i = 0; i < basePoint.counts.length; ++i) {
+//			basePoint.counts[i] += addedPoint.counts[i];
+//		}
+//	}
+//	
+//	tweetsToPoints(tweets, aggregationMillis, fromTimestamp, toTimestamp) {
+//		var firstTimestamp = fromTimestamp - (fromTimestamp % aggregationMillis);
+//		var lastTimestamp = toTimestamp - (toTimestamp % aggregationMillis);
+//		var pointCount = (lastTimestamp - firstTimestamp) / aggregationMillis + 1;
+//		
+//		var points = [];
+//		for (var i = 0; i < pointCount; ++i) {
+//			points.push({
+//				date: new Date(firstTimestamp + i * aggregationMillis),
+//				values: [0, 0, 0, 0],
+//				counts: [0, 0, 0, 0]
+//			});
+//		}
+//		
+//		tweets.forEach(function(tweet) {
+//			var pointIndex = Math.floor((tweet.createdAt - firstTimestamp) / aggregationMillis);
+//			this.updatePointForTweet(points[pointIndex], tweet);
+//		}, this);
+//		
+//		return points;
+//	}
+//	
+//	getAggregationMillis(loadFromTimestamp, loadToTimestamp) {
+//		var diffMillis = loadToTimestamp - loadFromTimestamp;
+//		var aggregationMillis = 1;
+//		for (var i = 0; i < config.aggregation.length; ++i) {
+//			var item = config.aggregation[i];
+//			if (item.fromSeconds * 1000 <= diffMillis) {
+//				aggregationMillis = item.millis;
+//			} else {
+//				break;
+//			}
+//		}
+//		return aggregationMillis;
+//	}
 	
 	getSentimentClass(tweet) {
 		return tweet.score < config.sentiment.neutralMin ? 0 : (tweet.score > config.sentiment.neutralMax ? 2 : 1);
@@ -527,51 +528,53 @@ class App extends Component {
 		return avg1 * (number1 / (number1 + number2)) + avg2 * (number2 / (number1 + number2));
 	}
 	
-	getUpdatedTweetStats(tweets) {
-		var stats = {
-			scoreMinMaxKnown: this.state.scoreMinMaxKnown || tweets.length > 0,
-			scoreMin: this.state.scoreMin,
-			scoreMax: this.state.scoreMax,
-			negativeCount: this.state.negativeCount,
-			negativeAverage: this.state.negativeAverage,
-			neutralCount: this.state.neutralCount,
-			neutralAverage: this.state.neutralAverage,
-			positiveCount: this.state.positiveCount,
-			positiveAverage: this.state.positiveAverage,
-			totalCount: this.state.totalCount,
-			totalAverage: this.state.totalAverage
-		};
-		tweets.forEach(function(tweet) {
-			stats.scoreMin = Math.min(stats.scoreMin, tweet.score);
-			stats.scoreMax = Math.max(stats.scoreMax, tweet.score);
-			stats.totalAverage = this.combineAverages(stats.totalAverage, stats.totalCount, tweet.score, 1);
-			++stats.totalCount;
-			switch(this.getSentimentClass(tweet)) {
-				case 0:
-					stats.negativeAverage = this.combineAverages(stats.negativeAverage, stats.negativeCount, tweet.score, 1);
-					++stats.negativeCount;
-					break;
-				case 1:
-					stats.neutralAverage = this.combineAverages(stats.neutralAverage, stats.neutralCount, tweet.score, 1);
-					++stats.neutralCount;
-					break;
-				default: // case 2:
-					stats.positiveAverage = this.combineAverages(stats.positiveAverage, stats.positiveCount, tweet.score, 1);
-					++stats.positiveCount;
-					break;
-			}
-		}, this);
-		
-		return stats;
-	}
-	
-	updateDisplayedTweets(tweets) {
-		var displayedTweets = [];
-		for (var i = 0; i < Math.min(this.state.displayedTweetsMaxCount, tweets.length); ++i) {
-			displayedTweets.push(tweets[i]);
-		}
-		this.setState({ displayedTweets: displayedTweets });
-	}
+// Notice: Tweet data aggregation is now done in the backend (Lambda)
+
+//	getUpdatedTweetStats(tweets) {
+//		var stats = {
+//			scoreMinMaxKnown: this.state.scoreMinMaxKnown || tweets.length > 0,
+//			scoreMin: this.state.scoreMin,
+//			scoreMax: this.state.scoreMax,
+//			negativeCount: this.state.negativeCount,
+//			negativeAverage: this.state.negativeAverage,
+//			neutralCount: this.state.neutralCount,
+//			neutralAverage: this.state.neutralAverage,
+//			positiveCount: this.state.positiveCount,
+//			positiveAverage: this.state.positiveAverage,
+//			totalCount: this.state.totalCount,
+//			totalAverage: this.state.totalAverage
+//		};
+//		tweets.forEach(function(tweet) {
+//			stats.scoreMin = Math.min(stats.scoreMin, tweet.score);
+//			stats.scoreMax = Math.max(stats.scoreMax, tweet.score);
+//			stats.totalAverage = this.combineAverages(stats.totalAverage, stats.totalCount, tweet.score, 1);
+//			++stats.totalCount;
+//			switch(this.getSentimentClass(tweet)) {
+//				case 0:
+//					stats.negativeAverage = this.combineAverages(stats.negativeAverage, stats.negativeCount, tweet.score, 1);
+//					++stats.negativeCount;
+//					break;
+//				case 1:
+//					stats.neutralAverage = this.combineAverages(stats.neutralAverage, stats.neutralCount, tweet.score, 1);
+//					++stats.neutralCount;
+//					break;
+//				default: // case 2:
+//					stats.positiveAverage = this.combineAverages(stats.positiveAverage, stats.positiveCount, tweet.score, 1);
+//					++stats.positiveCount;
+//					break;
+//			}
+//		}, this);
+//		
+//		return stats;
+//	}
+//	
+//	updateDisplayedTweets(tweets) {
+//		var displayedTweets = [];
+//		for (var i = 0; i < Math.min(this.state.displayedTweetsMaxCount, tweets.length); ++i) {
+//			displayedTweets.push(tweets[i]);
+//		}
+//		this.setState({ displayedTweets: displayedTweets });
+//	}
 	
 	// --- ^^^ --- TWEET PROCESSING ---------------------------------------------
 	
